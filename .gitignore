@@ -1,0 +1,28 @@
+# Credentials — NEVER commit these
+config/.anthropic_key
+config/*_credentials*
+config/*_token*
+config/*_secret*
+config/*.key
+*.env
+.env*
+
+# Personal data (created during onboarding)
+.openclaw/workspace/SOUL.md
+.openclaw/workspace/MEMORY.md
+.openclaw/workspace/USER.md
+.openclaw/workspace/memory/*.md
+!.openclaw/workspace/memory/.gitkeep
+
+# Temp zones (disposable by design)
+assets/tmp/*
+!assets/tmp/.gitkeep
+documents/drafts/*
+!documents/drafts/.gitkeep
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
