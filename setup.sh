@@ -20,7 +20,7 @@ echo ""
 # ----- 1. ディレクトリ展開 -----
 echo "Deploying branch office directories..."
 
-DIRS="HR assets documents projects scripts config"
+DIRS="HR assets documents projects scripts"
 for dir in $DIRS; do
   if [ -d "$HOME_DIR/$dir" ]; then
     echo "  [skip] ~/$dir (already exists)"
@@ -30,7 +30,15 @@ for dir in $DIRS; do
   fi
 done
 
-# .openclaw/workspace — template_workspace から初回コピーのみ
+# template_config -> ~/config (初回コピーのみ)
+if [ -d "$HOME_DIR/config" ]; then
+  echo "  [skip] ~/config (already exists)"
+elif [ -d "$REPO_DIR/template_config" ]; then
+  cp -r "$REPO_DIR/template_config" "$HOME_DIR/config"
+  echo "  [copy] template_config -> ~/config"
+fi
+
+# template_workspace -> ~/.openclaw/workspace (初回コピーのみ)
 if [ -d "$HOME_DIR/.openclaw/workspace" ]; then
   echo "  [skip] ~/.openclaw/workspace (already exists)"
 elif [ -d "$REPO_DIR/template_workspace" ]; then

@@ -1,9 +1,4 @@
 # Credentials — NEVER commit these
-config/.anthropic_key
-config/*_credentials*
-config/*_token*
-config/*_secret*
-config/*.key
 *.env
 .env*
 
