@@ -9,6 +9,7 @@ config/*.key
 
 # Personal data (created during onboarding)
 .openclaw/workspace/SOUL.md
+.openclaw/workspace/IDENTITY.md
 .openclaw/workspace/MEMORY.md
 .openclaw/workspace/USER.md
 .openclaw/workspace/memory/*.md
