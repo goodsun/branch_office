@@ -100,8 +100,19 @@ documents/drafts/→   確認    →   documents/discussions/ or notes/
 | * | **AIエージェントのAPIキー** | Anthropic / OpenAI / Google 等 |
 | | Node.js (v18+) | setup.shが自動インストール（nvm経由） |
 | | OpenClaw | setup.shが自動インストール |
+| | git | OS標準 or `apt install git` / `dnf install git` |
 
 > Node.jsのインストール方法にこだわりがある方（Homebrew、n 等）は、先にインストールしてから setup.sh を実行してください。
+
+### 推奨環境
+
+| 項目 | 最低 | 推奨 |
+|------|------|------|
+| RAM | 2GB | 4GB+ |
+| ディスク | 5GB | 10GB+ |
+| OS | macOS / Linux | - |
+
+> t2.micro（1GB RAM）では OpenClaw のインストール時にメモリ不足で失敗します。最低 2GB 以上の環境をご利用ください。
 
 ### おすすめ（Googleアカウントがあれば大体揃います）
 
