@@ -36,21 +36,3 @@ scripts/*
 documents/*
 !documents/.gitkeep
 !documents/company_rules/
-
-# Home directory dotfiles (repo lives in ~/)
-.*
-!.gitignore
-!.openclaw/
-.openclaw/*
-!.openclaw/workspace/
-.openclaw/workspace/SOUL.md
-.openclaw/workspace/IDENTITY.md
-.openclaw/workspace/MEMORY.md
-.openclaw/workspace/USER.md
-.openclaw/workspace/memory/*.md
-!.openclaw/workspace/memory/.gitkeep
-!.openclaw/workspace/AGENTS.md
-!.openclaw/workspace/HEARTBEAT.md
-!.openclaw/workspace/TOOLS.md
-!.openclaw/workspace/BOOTSTRAP.md
-!.openclaw/workspace/config/
