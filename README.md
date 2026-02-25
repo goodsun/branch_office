@@ -143,16 +143,47 @@ documents/drafts/→   確認    →   documents/discussions/ or notes/
 ## クイックスタート
 
 ```bash
-# 1. リポジトリをクローン
+# 1. リポジトリをクローン（gitが未インストールなら先に: sudo apt install git / sudo dnf install git）
 git clone https://github.com/goodsun/branch_office.git {division_name}
 cd {division_name}
 
-# 2. ブートストラップ実行
+# 2. ブートストラップ実行（Node.js + OpenClaw + AIエージェントを自動インストール）
 ./setup.sh
 
-# 3. OpenClaw起動 → AIが対話式にセットアップを続けます
+# 3. OpenClaw設定
+openclaw config          # "Local" を選択（VPS/クラウドでも自機で動かすなら Local）
+
+# 4. 通知チャンネル設定（例: Telegram）
+#    事前に @BotFather で /newbot してBot Tokenを取得しておく
+openclaw channels add    # 対話式でBot Tokenを入力
+
+# 5. Gateway起動
+openclaw gateway install
 openclaw gateway start
+
+# 6. Botにメッセージを送ってペアリング
+#    Telegramで作ったBotにDMを送る → ペアリングコードが返る
+openclaw pairing approve telegram <code>
+
+# 7. AIが起動！BOOTSTRAP.mdを読んで対話式にセットアップを続けます
 ```
+
+### APIキーについて
+
+- **Anthropic (Claude)**: https://console.anthropic.com/settings/keys で「Create Key」
+  - 古いキーが401エラーになる場合は新規作成を推奨
+  - `openclaw agents add main` でキーを登録後、`openclaw gateway restart` で反映
+- **OpenAI / Google**: 各プロバイダーのConsoleでキーを発行
+
+### トラブルシューティング
+
+| 症状 | 原因 | 対処 |
+|------|------|------|
+| npm installでOOM/SIGKILL | メモリ不足（1GB以下） | 2GB以上の環境を使用 |
+| Gateway start blocked: set gateway.mode=local | configでRemoteを選んだ | `openclaw config set gateway.mode local` |
+| 401 authentication_error | APIキー無効 | 新しいキーを作成して `openclaw agents add main` |
+| Agent failed: No API key found | キー未登録 | `openclaw agents add main` でキー登録 |
+| Botから返答なし | Gateway未起動 or ペアリング未完了 | `openclaw gateway status` で確認 |
 
 ## カスタマイズ箇所
 
