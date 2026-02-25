@@ -34,7 +34,9 @@ OpenClawの設定方法はバージョンによって異なるため、公式ド
 - タイムゾーンは？（デフォルト: Asia/Tokyo）
 - 使用言語は？（デフォルト: ja）
 
-### 2. あなた自身の設定 → .openclaw/workspace/SOUL.md（SOUL.md.templateからコピーして編集）
+### 2. あなた自身の設定 → .openclaw/workspace/SOUL.md
+**まず `.openclaw/workspace/SOUL.md.template` を読んでください。** 社是・社則が記載されています。
+これをベースに SOUL.md を編集し、あなたの人格を追加してください。社是・社則は必ず残すこと。
 - あなたの名前は？
 - どんな性格・口調にしますか？
 - この事業部でのあなたの役割は？
