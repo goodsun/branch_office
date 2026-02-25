@@ -26,3 +26,9 @@ Thumbs.db
 
 # Node
 node_modules/
+
+# Server-local (each division manages its own)
+projects/*
+!projects/.gitkeep
+scripts/*
+!scripts/.gitkeep
