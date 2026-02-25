@@ -118,7 +118,8 @@ documents/drafts/→   確認    →   documents/discussions/ or notes/
 | | OpenClaw | setup.shが自動インストール |
 | | git | OS標準 or `apt install git` / `dnf install git` |
 
-> Node.jsのインストール方法にこだわりがある方（Homebrew、n 等）は、先にインストールしてから setup.sh を実行してください。
+> **Node.js (v18+) は事前にインストールしてください。** setup.sh は Node.js の自動インストールを行いません。
+> nvm / Homebrew / apt / dnf など、お好みの方法でインストールしてから setup.sh を実行してください。
 
 ### 推奨環境
 
@@ -168,8 +169,9 @@ cd branch_office
 # 2. ブートストラップ実行（Node.js + OpenClaw + AIエージェントを自動インストール）
 ./setup.sh
 
-# 3. OpenClaw設定
-openclaw config          # "Local" を選択（VPS/クラウドでも自機で動かすなら Local）
+# 3. OpenClaw設定（"Local" を選択）
+openclaw config
+# ⚠️ 間違えて Remote を選んだ場合: openclaw config set gateway.mode local
 
 # 4. 通知チャンネル設定（例: Telegram）
 #    事前に @BotFather で /newbot してBot Tokenを取得しておく

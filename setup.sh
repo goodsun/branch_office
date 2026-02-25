@@ -56,12 +56,14 @@ echo "Checking prerequisites..."
 # Node.js
 if ! command -v node &> /dev/null; then
   echo ""
-  echo "  Node.js not found. Installing via nvm..."
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
-  export NVM_DIR="$HOME/.nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-  nvm install --lts
-  echo "  Node.js $(node -v) installed."
+  echo "  Node.js not found."
+  echo "  Please install Node.js (v18+) first:"
+  echo "    - nvm:      https://github.com/nvm-sh/nvm"
+  echo "    - Homebrew:  brew install node"
+  echo "    - dnf:       sudo dnf install nodejs"
+  echo "    - apt:       sudo apt install nodejs"
+  echo ""
+  exit 1
 else
   echo "  Node.js $(node -v)"
 fi

@@ -18,27 +18,29 @@ echo "================================"
 echo "Source: $REPO_DIR"
 echo ""
 
+# Helper: copy contents if source has files (safe against empty dirs)
+sync_dir() {
+  local src="$1" dst="$2"
+  if [ -d "$src" ] && ls "$src/"* &>/dev/null 2>&1; then
+    mkdir -p "$dst"
+    cp -r "$src/"* "$dst/"
+    echo "[sync] $dst/"
+  else
+    echo "[skip] $dst/ (source empty)"
+  fi
+}
+
 # ----- 1. 社則 (company_rules) — 強制上書き -----
-echo "[sync] documents/company_rules/"
-mkdir -p "$HOME_DIR/documents/company_rules"
-cp -r "$REPO_DIR/documents/company_rules/"* "$HOME_DIR/documents/company_rules/"
+sync_dir "$REPO_DIR/documents/company_rules" "$HOME_DIR/documents/company_rules"
 
 # ----- 2. 共通スクリプト (scripts/common) — 強制上書き -----
-echo "[sync] scripts/common/"
-mkdir -p "$HOME_DIR/scripts/common"
-cp -r "$REPO_DIR/scripts/common/"* "$HOME_DIR/scripts/common/"
+sync_dir "$REPO_DIR/scripts/common" "$HOME_DIR/scripts/common"
 
 # ----- 3. HR (profiles, charsheets) — 強制上書き -----
-echo "[sync] HR/"
-mkdir -p "$HOME_DIR/HR"
-cp -r "$REPO_DIR/HR/"* "$HOME_DIR/HR/"
+sync_dir "$REPO_DIR/HR" "$HOME_DIR/HR"
 
 # ----- 4. assets/charsheets — 強制上書き -----
-if [ -d "$REPO_DIR/assets/charsheets" ] && ls "$REPO_DIR/assets/charsheets/"* &>/dev/null; then
-  echo "[sync] assets/charsheets/"
-  mkdir -p "$HOME_DIR/assets/charsheets"
-  cp -r "$REPO_DIR/assets/charsheets/"* "$HOME_DIR/assets/charsheets/"
-fi
+sync_dir "$REPO_DIR/assets/charsheets" "$HOME_DIR/assets/charsheets"
 
 echo ""
 echo "================================"
