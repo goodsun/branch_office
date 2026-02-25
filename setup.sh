@@ -7,6 +7,7 @@
 # Usage: ./setup.sh
 
 set -e
+trap 'echo "ERROR at line $LINENO"; exit 1' ERR
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOME_DIR="$HOME"
@@ -29,13 +30,13 @@ for dir in $DIRS; do
   fi
 done
 
-# .openclaw/workspace — 存在しなければコピー
+# .openclaw/workspace — template_workspace から初回コピーのみ
 if [ -d "$HOME_DIR/.openclaw/workspace" ]; then
   echo "  [skip] ~/.openclaw/workspace (already exists)"
-else
+elif [ -d "$REPO_DIR/template_workspace" ]; then
   mkdir -p "$HOME_DIR/.openclaw"
-  cp -r "$REPO_DIR/.openclaw/workspace" "$HOME_DIR/.openclaw/workspace"
-  echo "  [copy] ~/.openclaw/workspace"
+  cp -r "$REPO_DIR/template_workspace" "$HOME_DIR/.openclaw/workspace"
+  echo "  [copy] template_workspace -> ~/.openclaw/workspace"
 fi
 
 echo "  Done."
@@ -67,54 +68,19 @@ else
   echo "  OpenClaw installed."
 fi
 
-# ----- 4. AI エージェント選択 -----
-echo ""
-echo "Select AI agent:"
-echo "  1) Claude Code (Anthropic)"
-echo "  2) OpenCode"
-echo "  3) Other (manual setup)"
-echo ""
-read -p "Choice [1]: " AI_CHOICE
-AI_CHOICE=${AI_CHOICE:-1}
-
-case $AI_CHOICE in
-  1)
-    if ! command -v claude &> /dev/null; then
-      echo "  Installing Claude Code..."
-      npm install -g @anthropic-ai/claude-code
-    fi
-    echo "  Claude Code ready."
-    ;;
-  2)
-    echo "  OpenCode selected (install manually)."
-    ;;
-  3)
-    echo "  Custom agent (configure manually)."
-    ;;
-esac
-
-# ----- 5. API キー -----
-if [ -z "$ANTHROPIC_API_KEY" ] && [ "${AI_CHOICE:-1}" = "1" ]; then
-  echo ""
-  read -sp "Anthropic API Key: " ANTHROPIC_API_KEY
-  echo ""
-  mkdir -p "$HOME/.config/branch_office"
-  echo "$ANTHROPIC_API_KEY" > "$HOME/.config/branch_office/anthropic_key"
-  chmod 600 "$HOME/.config/branch_office/anthropic_key"
-  export ANTHROPIC_API_KEY
-  echo "  Saved to ~/.config/branch_office/anthropic_key"
-fi
-
-# ----- 6. 完了 -----
+# ----- 4. 完了 -----
 echo ""
 echo "================================================="
 echo "Setup complete!"
 echo ""
 echo "Next steps:"
-echo "  1. Start OpenClaw Gateway:"
+echo "  1. Configure your API keys manually"
+echo "     (e.g. openclaw agents add main)"
+echo ""
+echo "  2. Start OpenClaw Gateway:"
 echo "     $ openclaw gateway start"
 echo ""
-echo "  2. The AI will read BOOTSTRAP.md and guide you"
+echo "  3. The AI will read BOOTSTRAP.md and guide you"
 echo "     through the interactive onboarding."
 echo ""
 echo "To sync updates later:"

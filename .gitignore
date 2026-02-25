@@ -7,13 +7,8 @@ config/*.key
 *.env
 .env*
 
-# Personal data (created during onboarding)
-.openclaw/workspace/SOUL.md
-.openclaw/workspace/IDENTITY.md
-.openclaw/workspace/MEMORY.md
-.openclaw/workspace/USER.md
-.openclaw/workspace/memory/*.md
-!.openclaw/workspace/memory/.gitkeep
+# Personal data (deployed to ~/.openclaw/workspace/, never committed there)
+# template_workspace/ is the source template (git-managed)
 
 # Temp zones (disposable by design)
 assets/tmp/*
