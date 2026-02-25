@@ -143,9 +143,9 @@ documents/drafts/→   確認    →   documents/discussions/ or notes/
 ## クイックスタート
 
 ```bash
-# 1. リポジトリをクローン（gitが未インストールなら先に: sudo apt install git / sudo dnf install git）
-git clone https://github.com/goodsun/branch_office.git {division_name}
-cd {division_name}
+# 1. リポジトリをホームディレクトリにクローン（gitが未インストールなら先に: sudo apt install git / sudo dnf install git）
+cd ~
+git clone https://github.com/goodsun/branch_office.git .
 
 # 2. ブートストラップ実行（Node.js + OpenClaw + AIエージェントを自動インストール）
 ./setup.sh
