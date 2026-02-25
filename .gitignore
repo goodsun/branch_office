@@ -32,3 +32,6 @@ projects/*
 !projects/.gitkeep
 scripts/*
 !scripts/.gitkeep
+documents/*
+!documents/.gitkeep
+!documents/company_rules/
