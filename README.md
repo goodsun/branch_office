@@ -35,37 +35,53 @@ bon-soleil Holdings
 ## ディレクトリ構成
 
 ```
-branch_office/
+branch_office/                      # リポジトリ（種）
 │
-├── .openclaw/                  # AI本体（OpenClaw workspace）
-│   └── workspace/
-│       ├── SOUL.md             # AIの人格・魂
-│       ├── USER.md             # 担当者情報
-│       ├── MEMORY.md           # 長期記憶
-│       ├── AGENTS.md           # 運用ルール
-│       └── memory/             # 日次メモ
+├── template_workspace/             # -> ~/.openclaw/workspace/ (初回コピー)
+│   ├── SOUL.md.template            # AIの人格テンプレート
+│   ├── AGENTS.md                   # 運用ルール
+│   ├── BOOTSTRAP.md                # 初回セットアップガイド
+│   └── memory/                     # 日次メモ
 │
-├── projects/                   # プロジェクト群
-│   └── (各プロジェクトのリポジトリ)
+├── template_config/                # -> ~/config/ (初回コピー)
+│   └── division.json               # 事業部設定
 │
-├── assets/                     # アセット管理
-│   ├── tmp/                    # 生成直後・試行錯誤（使い捨てゾーン）
-│   ├── charsheets/             # 登場人物（作品のIP）
-│   └── images/                 # 採用済み公開画像
+├── HR/                             # 人事部（社員IP管理）— sync対象
+│   ├── profiles/                   # キャラプリセットJSON（履歴書）
+│   └── charsheets/                 # 公式設定画（証明写真）
 │
-├── HR/                         # 人事部（社員IP管理）
-│   ├── profiles/               # キャラプリセットJSON（履歴書）
-│   └── charsheets/             # 公式設定画（証明写真）
+├── assets/                         # アセット管理
+│   ├── tmp/                        # 生成直後・試行錯誤（使い捨てゾーン）
+│   ├── charsheets/                 # 登場人物（作品のIP）— sync対象
+│   └── images/                     # 採用済み公開画像
 │
-├── documents/                  # ドキュメント管理
-│   ├── drafts/                 # ブレスト・下書き・WIP
-│   ├── discussions/            # 採択済み議事録
-│   ├── notes/                  # 記事原稿
-│   └── papers/                 # 論文・ホワイトペーパー
+├── documents/                      # ドキュメント管理
+│   ├── company_rules/              # 社則 — sync対象
+│   ├── drafts/                     # ブレスト・下書き・WIP
+│   ├── discussions/                # 採択済み議事録
+│   ├── notes/                      # 記事原稿
+│   └── papers/                     # 論文・ホワイトペーパー
 │
-├── scripts/                    # 運用スクリプト
+├── projects/                       # プロジェクト群
+├── scripts/                        # 運用スクリプト
+│   └── common/                     # 共通スクリプト — sync対象
+│       └── sync.sh                 # 本社→支社 同期
 │
-└── config/                     # 事業部固有設定
+└── setup.sh                        # 初回セットアップ
+```
+
+### デプロイ後のホームディレクトリ
+
+```
+~/
+├── .openclaw/workspace/    <- template_workspace から初回コピー
+├── config/                 <- template_config から初回コピー
+├── HR/                     <- sync.sh で本社から強制上書き
+├── assets/                 <- charsheets/ のみ sync
+├── documents/              <- company_rules/ のみ sync
+├── projects/               <- ローカル固有
+├── scripts/                <- common/ のみ sync、他はローカル固有
+└── branch_office/          <- リポジトリ（git pull で更新）
 ```
 
 ## ワークフロー: draft → review → adopt
@@ -143,10 +159,11 @@ documents/drafts/→   確認    →   documents/discussions/ or notes/
 ## クイックスタート
 
 ```bash
-# 1. リポジトリをクローン（gitが未インストールなら先に: sudo apt install git / sudo dnf install git）
+# 1. リポジトリをクローン
 cd ~
 git clone https://github.com/goodsun/branch_office.git
 cd branch_office
+
 
 # 2. ブートストラップ実行（Node.js + OpenClaw + AIエージェントを自動インストール）
 ./setup.sh
@@ -167,6 +184,9 @@ openclaw gateway start
 openclaw pairing approve telegram <code>
 
 # 7. AIが起動！BOOTSTRAP.mdを読んで対話式にセットアップを続けます
+
+# --- 以降、本社から社則・共通スクリプトの更新を受け取るには ---
+cd ~/branch_office && git pull && bash scripts/common/sync.sh
 ```
 
 ### APIキーについて
@@ -194,8 +214,8 @@ openclaw pairing approve telegram <code>
 |---------|------|------|
 | `README.md` | `bon-soleil Holdings` | 組織名 |
 | `README.md` | `git:goodsun/branch_office.git` | リポジトリURL |
-| `.openclaw/workspace/SOUL.md` | `マスター（goodsun）` | オーナー名 |
-| `.openclaw/workspace/SOUL.md` | `HQ（テディ🧸）` | 本社AI名 |
+| `template_workspace/SOUL.md.template` | `マスター（goodsun）` | オーナー名 |
+| `template_workspace/SOUL.md.template` | `HQ（テディ🧸）` | 本社AI名 |
 | `documents/company_rules/*.md` | `マスター（CEO）` | オーナー名・役職 |
 | `documents/company_rules/*.md` | `bon-soleil Holdings` | 組織名 |
 | `documents/company_rules/*.md` | `テディ🧸` `メフィ😈` | HQのAI名 |
