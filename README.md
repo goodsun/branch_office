@@ -114,7 +114,7 @@ documents/drafts/→   確認    →   documents/discussions/ or notes/
 | 必須 | 項目 | 入手先 |
 |:---:|------|--------|
 | * | **AIエージェントのAPIキー** | Anthropic / OpenAI / Google 等 |
-| | Node.js (v18+) | setup.shが自動インストール（nvm経由） |
+| * | Node.js (v18+) | nvm / Homebrew / apt / dnf 等で事前インストール |
 | | OpenClaw | setup.shが自動インストール |
 | | git | OS標準 or `apt install git` / `dnf install git` |
 
