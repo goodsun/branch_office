@@ -11,7 +11,7 @@ trap 'echo "ERROR at line $LINENO"; exit 1' ERR
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOME_DIR="$HOME"
-WORKSPACE="$HOME/.openclaw/workspace"
+WORKSPACE="$HOME/workspace"
 
 echo ""
 echo "bon-soleil Holdings — Branch Office Setup"
@@ -23,15 +23,14 @@ echo "Deploying branch office directories..."
 
 # workspace初期化 (template_workspace -> ~/.openclaw/workspace)
 if [ -d "$WORKSPACE" ]; then
-  echo "  [skip] ~/.openclaw/workspace (already exists)"
+  echo "  [skip] ~/workspace (already exists)"
 elif [ -d "$REPO_DIR/template_workspace" ]; then
-  mkdir -p "$HOME/.openclaw"
   cp -r "$REPO_DIR/template_workspace" "$WORKSPACE"
-  echo "  [copy] template_workspace -> ~/.openclaw/workspace"
+  echo "  [copy] template_workspace -> ~/workspace"
 fi
 
 # workspace内に配置するディレクトリ (エージェントがアクセスする全データ)
-WS_DIRS="HR assets charsheets"
+WS_DIRS="HR assets"
 for dir in $WS_DIRS; do
   if [ -d "$WORKSPACE/$dir" ]; then
     echo "  [skip] workspace/$dir (already exists)"

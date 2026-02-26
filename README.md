@@ -48,11 +48,11 @@ branch_office/                      # リポジトリ（種）
 │
 ├── HR/                             # 人事部（社員IP管理）— workspace内にsync
 │   ├── profiles/                   # キャラプリセットJSON（履歴書）
-│   └── charsheets/                 # 公式設定画（証明写真）
+│   └── charsheets/                 # 社員の公式設定画（証明写真）
 │
 ├── assets/                         # アセット管理 — workspace内にsync
 │   ├── tmp/                        # 生成直後・試行錯誤（使い捨てゾーン）
-│   ├── charsheets/                 # 登場人物（作品のIP）
+│   ├── charsheets/                 # 登場人物の設定画（作品のIP）
 │   └── images/                     # 採用済み公開画像
 │
 ├── documents/                      # ドキュメント管理
@@ -74,11 +74,10 @@ branch_office/                      # リポジトリ（種）
 
 ```
 ~/
-├── .openclaw/workspace/    <- template_workspace から初回コピー
+├── workspace/              <- template_workspace から初回コピー（= OpenClawのworkspace）
 │   ├── AGENTS.md, SOUL.md, MEMORY.md...
 │   ├── HR/                 <- sync.sh で本社から強制上書き
-│   ├── assets/             <- charsheets/ のみ sync
-│   └── charsheets/         <- sync対象（imageツールからアクセス可）
+│   └── assets/             <- charsheets/ のみ sync
 ├── config/                 <- template_config から初回コピー
 ├── documents/              <- company_rules/ のみ sync
 ├── projects/               <- ローカル固有
@@ -86,9 +85,13 @@ branch_office/                      # リポジトリ（種）
 └── branch_office/          <- リポジトリ（git pull で更新）
 ```
 
-> HR, assets, charsheets は workspace 内に配置。
+> HR, assets は workspace 内に配置。
 > OpenClaw の image ツールは workspace 内のファイルのみ読み取り可能なため、
 > エージェントがアクセスする画像・データは全て workspace 内に集約する。
+> workspace を `~/workspace/` にすることで、隠しディレクトリに実データを埋めず、
+> Finder や `ls` で直接見える場所に配置する。
+>
+> OpenClaw設定: `openclaw config set agents.defaults.workspace ~/workspace`
 
 ## ワークフロー: draft → review → adopt
 
@@ -213,6 +216,28 @@ cd ~/branch_office && git pull && bash scripts/common/sync.sh
 | 401 authentication_error | APIキー無効 | 新しいキーを作成して `openclaw agents add main` |
 | Agent failed: No API key found | キー未登録 | `openclaw agents add main` でキー登録 |
 | Botから返答なし | Gateway未起動 or ペアリング未完了 | `openclaw gateway status` で確認 |
+
+## v2からのマイグレーション
+
+v2（`~/.openclaw/workspace/` + ホーム直下配置）からv3（`~/workspace/` 統合）への移行:
+
+```bash
+# 1. workspaceを移動
+mv ~/.openclaw/workspace ~/workspace
+
+# 2. HR, assetsをworkspace内に移動
+mv ~/HR ~/workspace/
+mv ~/assets ~/workspace/
+
+# 3. OpenClawのworkspaceパスを変更
+openclaw config set agents.defaults.workspace ~/workspace
+
+# 4. branch_officeを更新してsync
+cd ~/branch_office && git pull && bash scripts/common/sync.sh
+
+# 5. Gateway再起動
+openclaw gateway restart
+```
 
 ## カスタマイズ箇所
 

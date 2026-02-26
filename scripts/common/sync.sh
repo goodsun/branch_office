@@ -11,7 +11,7 @@ trap 'echo "ERROR at line $LINENO"; exit 1' ERR
 
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 HOME_DIR="$HOME"
-WORKSPACE="$HOME/.openclaw/workspace"
+WORKSPACE="$HOME/workspace"
 
 echo ""
 echo "bon-soleil Holdings — Sync"
