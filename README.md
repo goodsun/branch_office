@@ -108,8 +108,14 @@ documents/drafts/→   確認    →   documents/discussions/ or notes/
 - 未採用は一定期間後に削除
 
 > **`assets/tmp/` は揮発データ。** 画像生成の試行錯誤（v1, v2...）を一時保管する場所であり、
-> 永続的なデータを置いてはいけない。AIエージェントまたはcronで定期的にクリーンアップされる。
-> sync対象外。
+> 永続的なデータを置いてはいけない。7日以上経過したファイルはクリーンアップ対象。
+> `.gitignore` でgit管理外、sync対象外。
+>
+> クリーンアップ（手動 or cron）:
+> ```bash
+> bash ~/branch_office/scripts/common/cleanup_tmp.sh
+> ```
+> Cron例（毎週日曜3時）: `0 3 * * 0 cd ~/branch_office && bash scripts/common/cleanup_tmp.sh`
 
 ## HR: 社員 vs 登場人物
 
@@ -240,6 +246,25 @@ openclaw config set agents.defaults.workspace ~/workspace
 cd ~/branch_office && git pull && bash scripts/common/sync.sh
 
 # 5. Gateway再起動
+openclaw gateway restart
+```
+
+## v3からv2へのロールバック
+
+万一v3で問題が発生した場合の戻し手順:
+
+```bash
+# 1. workspace内のデータをホーム直下に戻す
+mv ~/workspace/HR ~/
+mv ~/workspace/assets ~/
+
+# 2. workspaceを元の場所に戻す
+mv ~/workspace ~/.openclaw/workspace
+
+# 3. OpenClawのworkspaceパスを元に戻す
+openclaw config set agents.defaults.workspace ~/.openclaw/workspace
+
+# 4. Gateway再起動
 openclaw gateway restart
 ```
 
