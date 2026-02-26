@@ -103,9 +103,13 @@ assets/tmp/      →   確認    →   assets/charsheets/ or images/
 documents/drafts/→   確認    →   documents/discussions/ or notes/
 ```
 
-- `tmp/` `drafts/` は使い捨てゾーン（定期クリーンアップ対象）
+- `assets/tmp/` `documents/drafts/` は使い捨てゾーン（定期クリーンアップ対象）
 - 採用されたものだけ正式ディレクトリに移動
 - 未採用は一定期間後に削除
+
+> **`assets/tmp/` は揮発データ。** 画像生成の試行錯誤（v1, v2...）を一時保管する場所であり、
+> 永続的なデータを置いてはいけない。AIエージェントまたはcronで定期的にクリーンアップされる。
+> sync対象外。
 
 ## HR: 社員 vs 登場人物
 
