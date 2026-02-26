@@ -11,6 +11,7 @@ trap 'echo "ERROR at line $LINENO"; exit 1' ERR
 
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 HOME_DIR="$HOME"
+WORKSPACE="$HOME/.openclaw/workspace"
 
 echo ""
 echo "bon-soleil Holdings — Sync"
@@ -36,11 +37,11 @@ sync_dir "$REPO_DIR/documents/company_rules" "$HOME_DIR/documents/company_rules"
 # ----- 2. 共通スクリプト (scripts/common) — 強制上書き -----
 sync_dir "$REPO_DIR/scripts/common" "$HOME_DIR/scripts/common"
 
-# ----- 3. HR (profiles, charsheets) — 強制上書き -----
-sync_dir "$REPO_DIR/HR" "$HOME_DIR/HR"
+# ----- 3. HR (profiles, charsheets) — workspace内に強制上書き -----
+sync_dir "$REPO_DIR/HR" "$WORKSPACE/HR"
 
-# ----- 4. assets/charsheets — 強制上書き -----
-sync_dir "$REPO_DIR/assets/charsheets" "$HOME_DIR/assets/charsheets"
+# ----- 4. assets/charsheets — workspace内に強制上書き -----
+sync_dir "$REPO_DIR/assets/charsheets" "$WORKSPACE/assets/charsheets"
 
 echo ""
 echo "================================"

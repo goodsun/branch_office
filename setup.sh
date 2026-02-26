@@ -11,6 +11,7 @@ trap 'echo "ERROR at line $LINENO"; exit 1' ERR
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOME_DIR="$HOME"
+WORKSPACE="$HOME/.openclaw/workspace"
 
 echo ""
 echo "bon-soleil Holdings — Branch Office Setup"
@@ -20,8 +21,29 @@ echo ""
 # ----- 1. ディレクトリ展開 -----
 echo "Deploying branch office directories..."
 
-DIRS="HR assets documents projects scripts"
-for dir in $DIRS; do
+# workspace初期化 (template_workspace -> ~/.openclaw/workspace)
+if [ -d "$WORKSPACE" ]; then
+  echo "  [skip] ~/.openclaw/workspace (already exists)"
+elif [ -d "$REPO_DIR/template_workspace" ]; then
+  mkdir -p "$HOME/.openclaw"
+  cp -r "$REPO_DIR/template_workspace" "$WORKSPACE"
+  echo "  [copy] template_workspace -> ~/.openclaw/workspace"
+fi
+
+# workspace内に配置するディレクトリ (エージェントがアクセスする全データ)
+WS_DIRS="HR assets charsheets"
+for dir in $WS_DIRS; do
+  if [ -d "$WORKSPACE/$dir" ]; then
+    echo "  [skip] workspace/$dir (already exists)"
+  elif [ -d "$REPO_DIR/$dir" ]; then
+    cp -r "$REPO_DIR/$dir" "$WORKSPACE/$dir"
+    echo "  [copy] workspace/$dir"
+  fi
+done
+
+# ホーム直下に配置するディレクトリ (実行コード・ドキュメント)
+HOME_DIRS="documents projects scripts"
+for dir in $HOME_DIRS; do
   if [ -d "$HOME_DIR/$dir" ]; then
     echo "  [skip] ~/$dir (already exists)"
   else
@@ -36,15 +58,6 @@ if [ -d "$HOME_DIR/config" ]; then
 elif [ -d "$REPO_DIR/template_config" ]; then
   cp -r "$REPO_DIR/template_config" "$HOME_DIR/config"
   echo "  [copy] template_config -> ~/config"
-fi
-
-# template_workspace -> ~/.openclaw/workspace (初回コピーのみ)
-if [ -d "$HOME_DIR/.openclaw/workspace" ]; then
-  echo "  [skip] ~/.openclaw/workspace (already exists)"
-elif [ -d "$REPO_DIR/template_workspace" ]; then
-  mkdir -p "$HOME_DIR/.openclaw"
-  cp -r "$REPO_DIR/template_workspace" "$HOME_DIR/.openclaw/workspace"
-  echo "  [copy] template_workspace -> ~/.openclaw/workspace"
 fi
 
 echo "  Done."

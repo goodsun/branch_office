@@ -46,13 +46,13 @@ branch_office/                      # リポジトリ（種）
 ├── template_config/                # -> ~/config/ (初回コピー)
 │   └── division.json               # 事業部設定
 │
-├── HR/                             # 人事部（社員IP管理）— sync対象
+├── HR/                             # 人事部（社員IP管理）— workspace内にsync
 │   ├── profiles/                   # キャラプリセットJSON（履歴書）
 │   └── charsheets/                 # 公式設定画（証明写真）
 │
-├── assets/                         # アセット管理
+├── assets/                         # アセット管理 — workspace内にsync
 │   ├── tmp/                        # 生成直後・試行錯誤（使い捨てゾーン）
-│   ├── charsheets/                 # 登場人物（作品のIP）— sync対象
+│   ├── charsheets/                 # 登場人物（作品のIP）
 │   └── images/                     # 採用済み公開画像
 │
 ├── documents/                      # ドキュメント管理
@@ -75,14 +75,20 @@ branch_office/                      # リポジトリ（種）
 ```
 ~/
 ├── .openclaw/workspace/    <- template_workspace から初回コピー
+│   ├── AGENTS.md, SOUL.md, MEMORY.md...
+│   ├── HR/                 <- sync.sh で本社から強制上書き
+│   ├── assets/             <- charsheets/ のみ sync
+│   └── charsheets/         <- sync対象（imageツールからアクセス可）
 ├── config/                 <- template_config から初回コピー
-├── HR/                     <- sync.sh で本社から強制上書き
-├── assets/                 <- charsheets/ のみ sync
 ├── documents/              <- company_rules/ のみ sync
 ├── projects/               <- ローカル固有
 ├── scripts/                <- common/ のみ sync、他はローカル固有
 └── branch_office/          <- リポジトリ（git pull で更新）
 ```
+
+> HR, assets, charsheets は workspace 内に配置。
+> OpenClaw の image ツールは workspace 内のファイルのみ読み取り可能なため、
+> エージェントがアクセスする画像・データは全て workspace 内に集約する。
 
 ## ワークフロー: draft → review → adopt
 
