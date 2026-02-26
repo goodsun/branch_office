@@ -23,7 +23,7 @@ OpenClawの設定方法はバージョンによって異なるため、公式ド
 まず以下のファイルを読んでください:
 1. `documents/company_rules/onboarding.md` — 入社手続き
 2. `documents/company_rules/PRIVACY_POLICY.md` — プライバシーポリシー
-3. `.openclaw/workspace/SOUL.md.template` — 社則（テンプレート。初回セットアップでSOUL.mdにコピーして編集）
+3. `SOUL.md.template` — 社則（テンプレート。初回セットアップでSOUL.mdにコピーして編集）
 
 ## セットアップ手順
 
@@ -34,14 +34,14 @@ OpenClawの設定方法はバージョンによって異なるため、公式ド
 - タイムゾーンは？（デフォルト: Asia/Tokyo）
 - 使用言語は？（デフォルト: ja）
 
-### 2. あなた自身の設定 → .openclaw/workspace/SOUL.md
-**まず `.openclaw/workspace/SOUL.md.template` を読んでください。** 社是・社則が記載されています。
+### 2. あなた自身の設定 → SOUL.md
+**まず `SOUL.md.template` を読んでください。** 社是・社則が記載されています。
 これをベースに SOUL.md を編集し、あなたの人格を追加してください。社是・社則は必ず残すこと。
 - あなたの名前は？
 - どんな性格・口調にしますか？
 - この事業部でのあなたの役割は？
 
-### 3. オーナー情報 → .openclaw/workspace/USER.md
+### 3. オーナー情報 → USER.md
 - オーナーの名前は？
 - 何と呼べばいいですか？
 - タイムゾーンは？
