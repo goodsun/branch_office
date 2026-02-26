@@ -84,20 +84,43 @@ branch_office/                      # リポジトリ（種）
 │   ├── config/             <- 設定ファイル（certbot 等も含む）
 │   ├── generates/          <- 生成物ステージング（試行錯誤置き場）
 │   └── logs/               <- ログ
-├── www/                    <- ローカルLAN向け静的Webコンテンツ（Apacheが配信）
-│                              ※ アプリコードは置かない。静的ファイルのみ
 └── branch_office/          <- リポジトリ（git pull で更新）
                                ※ workspace 外に置く（理由: contribution_guide.md 参照）
 ```
 
-> **`www/` について**: Apache/nginx のドキュメントルート。
-> ローカルLANで静的ファイルを手軽に共有するための場所。
-> アプリコード（Flask, FastAPI 等）は絶対に置かない。
-> アプリは `workspace/projects/` に置き、リバースプロキシ経由で公開する。
-
 > **`workspace/projects/` について**: gitリポジトリをcloneしてここで作業し、
 > 成果を GitHub に push するのが基本ワークフロー。
 > `~/workspace/projects/` は workspace 内なので image ツールからも参照可能。
+
+### v3.3からv3.4へのマイグレーション
+
+v3.3以前では `~/documents/`、`~/config/`、`~/generates/`、`~/logs/` がホーム直下にありました。
+v3.4からは `~/workspace/` 配下に統合されています。
+
+```bash
+# 1. 各ディレクトリを workspace 配下に移動
+#    ※ macOS は ~/documents/ が ~/Documents/ と同一のため rsync を使う
+rsync -a ~/documents/discussions/ ~/workspace/documents/discussions/
+rm -rf ~/documents/discussions
+
+mv ~/generates ~/workspace/generates
+mv ~/logs ~/workspace/logs
+mv ~/config ~/workspace/config
+
+# 2. certbot を使っている場合
+mv ~/certbot ~/workspace/config/certbot
+# Apache/nginx の証明書パスを更新することを忘れずに
+
+# 3. scripts を使っている場合
+rsync -a ~/scripts/ ~/workspace/scripts/
+rm -rf ~/scripts
+
+# 4. branch_office を更新
+cd ~/branch_office && git pull && bash scripts/common/sync.sh
+
+# 5. Gateway 再起動
+openclaw gateway restart
+```
 
 > HR, assets は workspace 内に配置。
 > OpenClaw の image ツールは workspace 内のファイルのみ読み取り可能なため、
