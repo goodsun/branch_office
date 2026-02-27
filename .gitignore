@@ -27,3 +27,4 @@ scripts/*
 documents/*
 !documents/.gitkeep
 !documents/company_rules/
+!documents/proposals/
