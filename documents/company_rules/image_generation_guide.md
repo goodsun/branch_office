@@ -27,11 +27,13 @@ Gemini はプロンプトテキストを ref 画像より強く優先する。
 
 ref（charsheet）を指定した場合、その ref に描かれている要素と矛盾する記述を prompt_features に含めてはならない。
 
-**AIが prompt_features を生成する際のルール:**
+**prompt_features 記述ルール:**
 
 1. **ref の内容を先に確認する** — 何を着ているか、髪型はどうか、ポーズは何か
 2. **ref と重複・矛盾する外見描写を入れない** — ref に任せる部分は書かない
 3. **prompt_features はシーン・状況・表情など、ref に含まれない要素を書く**
+
+AI生成・手書きを問わず、prompt_features を記述する際はこのルールに従うこと。
 
 ### 具体例
 
@@ -39,18 +41,16 @@ ref（charsheet）を指定した場合、その ref に描かれている要素
 |-----|-------------------------------|------------|
 | casual.png（カーディガン姿） | ~~sage green kimono~~, ~~着物~~ | カフェの雰囲気、表情、動作 |
 | dressup.png（ドレス姿） | ~~casual wear~~, ~~パーカー~~ | パーティーの場面、ポーズ |
-| 実物写真（備前焼の器） | ~~丸い茶碗~~（形を上書きしない） | 器の使われ方、食卓の雰囲気 |
-
-### preset での対応
-
-ref と prompt_features の矛盾を構造的に防ぐには、preset のスタイル定義で override をセットで定義する。
+| 実物写真（備前焼の器） | ~~丸い茶碗~~, ~~角張った形~~ | 器の使われ方、食卓の雰囲気 |
 
 ## スタイル切替は必ず両方セットで
 
+ref と prompt_features の矛盾を構造的に防ぐには、preset のスタイル定義で override をセットで定義する。
+
 ```json
-"corp": {
-  "charsheet_override": "~/workspace/HR/charsheets/xxx/corp.jpg",
-  "prompt_features_override": "具体的な外見テキスト..."
+"casual": {
+  "charsheet_override": "~/workspace/HR/charsheets/akiko_bizeny/casual.png",
+  "prompt_features_override": "young Japanese-French woman with dark brown hair in a relaxed low ponytail, beige knit cardigan over white blouse, dark skirt, rosy cheeks"
 }
 ```
 
