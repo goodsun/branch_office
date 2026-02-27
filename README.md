@@ -74,15 +74,52 @@ branch_office/                      # リポジトリ（種）
 
 ```
 ~/
-├── workspace/              <- template_workspace から初回コピー（= OpenClawのworkspace）
+├── workspace/              <- AI の作業場所（branch_office 構成に準拠）
 │   ├── AGENTS.md, SOUL.md, MEMORY.md...
 │   ├── HR/                 <- sync.sh で本社から強制上書き
-│   └── assets/             <- charsheets/ のみ sync
-├── config/                 <- template_config から初回コピー
-├── documents/              <- company_rules/ のみ sync
-├── projects/               <- ローカル固有
-├── scripts/                <- common/ のみ sync、他はローカル固有
+│   ├── assets/             <- charsheets/ のみ sync
+│   ├── documents/          <- company_rules/ のみ sync + 議事録等
+│   ├── projects/           <- gitリポジトリをcloneして作業する場所
+│   ├── scripts/            <- common/ のみ sync、他はローカル固有
+│   ├── config/             <- 設定ファイル（certbot 等も含む）
+│   ├── generates/          <- 生成物ステージング（試行錯誤置き場）
+│   └── logs/               <- ログ
 └── branch_office/          <- リポジトリ（git pull で更新）
+                               ※ workspace 外に置く（理由: contribution_guide.md 参照）
+```
+
+> **`workspace/projects/` について**: gitリポジトリをcloneしてここで作業し、
+> 成果を GitHub に push するのが基本ワークフロー。
+> `~/workspace/projects/` は workspace 内なので image ツールからも参照可能。
+
+### v3.3からv3.4へのマイグレーション
+
+v3.3以前では `~/documents/`、`~/config/`、`~/generates/`、`~/logs/` がホーム直下にありました。
+v3.4からは `~/workspace/` 配下に統合されています。
+
+```bash
+# 1. 各ディレクトリを workspace 配下に移動
+#    ※ macOS は ~/documents/ が ~/Documents/ と同一のため rsync を使う
+rsync -a ~/documents/discussions/ ~/workspace/documents/discussions/
+rm -rf ~/documents/discussions
+
+mv ~/generates ~/workspace/generates
+mv ~/logs ~/workspace/logs
+mv ~/config ~/workspace/config
+
+# 2. certbot を使っている場合
+mv ~/certbot ~/workspace/config/certbot
+# Apache/nginx の証明書パスを更新することを忘れずに
+
+# 3. scripts を使っている場合
+rsync -a ~/scripts/ ~/workspace/scripts/
+rm -rf ~/scripts
+
+# 4. branch_office を更新
+cd ~/branch_office && git pull && bash scripts/common/sync.sh
+
+# 5. Gateway 再起動
+openclaw gateway restart
 ```
 
 > HR, assets は workspace 内に配置。
