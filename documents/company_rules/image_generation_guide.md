@@ -21,6 +21,30 @@ Gemini はプロンプトテキストを ref 画像より強く優先する。
 - ref を渡さず prompt_features だけ → 外見は正確だがタッチが安定しない
 - **両方揃えるのがベスト**
 
+## ref と prompt_features の競合回避
+
+### 原則: ref の内容を壊す prompt_features を書かない
+
+ref（charsheet）を指定した場合、その ref に描かれている要素と矛盾する記述を prompt_features に含めてはならない。
+
+**AIが prompt_features を生成する際のルール:**
+
+1. **ref の内容を先に確認する** — 何を着ているか、髪型はどうか、ポーズは何か
+2. **ref と重複・矛盾する外見描写を入れない** — ref に任せる部分は書かない
+3. **prompt_features はシーン・状況・表情など、ref に含まれない要素を書く**
+
+### 具体例
+
+| ref | prompt_features に書いてはいけない | 書くべきこと |
+|-----|-------------------------------|------------|
+| casual.png（カーディガン姿） | ~~sage green kimono~~, ~~着物~~ | カフェの雰囲気、表情、動作 |
+| dressup.png（ドレス姿） | ~~casual wear~~, ~~パーカー~~ | パーティーの場面、ポーズ |
+| 実物写真（備前焼の器） | ~~丸い茶碗~~（形を上書きしない） | 器の使われ方、食卓の雰囲気 |
+
+### preset での対応
+
+ref と prompt_features の矛盾を構造的に防ぐには、preset のスタイル定義で override をセットで定義する。
+
 ## スタイル切替は必ず両方セットで
 
 ```json
@@ -32,6 +56,9 @@ Gemini はプロンプトテキストを ref 画像より強く優先する。
 
 **`charsheet_override` と `prompt_features_override` は必ずセットで定義する。**
 片方だけでは切り替わらない。
+
+**override を定義する場合、元の prompt_features から衣装の記述を差し替えること。**
+元の prompt_features をコピーして衣装部分だけ書き換えるのが確実。
 
 ## モデル選定
 
