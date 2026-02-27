@@ -28,6 +28,16 @@
       "description": "ドレスアップ — エメラルドグリーンドレス＋ボレロ",
       "charsheet": "HR/charsheets/akiko_bizeny/dressup.png",
       "prompt_features_override": "young Japanese-French woman with dark brown hair in an elegant updo with soft side-swept wispy bangs and delicate loose strands, emerald green cocktail dress with matching bolero jacket, rosy cheeks, elegant and graceful expression"
+    },
+    "armored": {
+      "description": "鎧 — 備前焼テクスチャの和風鎧＋刀",
+      "charsheet": "HR/charsheets/akiko_bizeny/armored.jpg",
+      "prompt_features_override": "young Japanese-French woman with dark brown hair in a tight battle-ready bun, wearing Bizen-ware inspired samurai armor with dark brown and reddish-brown ceramic-textured plates with natural ash glaze patterns, indigo hakama, katana at waist, shin guards, calm but fierce expression"
+    },
+    "punk": {
+      "description": "パンク — パリジェンヌ・パンクストリート",
+      "charsheet": "HR/charsheets/akiko_bizeny/punk.jpg",
+      "prompt_features_override": "young Japanese-French woman with dark brown wavy hair worn down and slightly messy, black beret tilted to the side, studded black leather biker jacket with pins, torn band t-shirt, red plaid mini skirt, fishnet stockings, black buckled combat boots, choker necklace, rebellious but gentle expression"
     }
   }
 }
