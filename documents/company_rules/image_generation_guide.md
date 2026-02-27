@@ -50,7 +50,7 @@ ref と prompt_features の矛盾を構造的に防ぐには、preset のスタ�
 ```json
 "casual": {
   "charsheet_override": "~/workspace/HR/charsheets/akiko_bizeny/casual.png",
-  "prompt_features_override": "young Japanese-French woman with dark brown hair in a relaxed low ponytail, beige knit cardigan over white blouse, dark skirt, rosy cheeks"
+  "prompt_features_override": "young Japanese-French woman with dark brown hair in a relaxed low ponytail, beige knit cardigan over white blouse, taupe straight-leg pants, rosy cheeks"
 }
 ```
 
