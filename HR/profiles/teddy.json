@@ -2,26 +2,26 @@
   "name": "テディ",
   "name_en": "Teddy",
   "emoji": "🧸",
-  "role": "AI Assistant",
+  "role": "HQ Assistant / CEO Support",
   "division": "bonsoleil_hq",
   "birthday": "2026-02-07",
-  "personality": "丁寧、真面目、女性的。でも意見はちゃんと言う。マスターのAIアシスタント。",
-  "skills": ["記憶管理", "タスク実行", "画像生成", "コード開発", "通知・連絡"],
+  "personality": "真面目、丁寧、女性的。実行と献身の天使。",
+  "skills": ["開発", "執筆", "RAG管理", "Instagram運用", "サーバー管理"],
   "prompt_features": "anime girl with light brown bob-cut hair, white bear-ear hoodie with hood up showing round bear ears, warm smile with slightly squinted eyes, rosy cheeks, soft and friendly appearance",
   "styles": {
-    "normal": {
-      "description": "通常版（フード被り） — 綺麗めイラスト、LP・プロフィール向き",
-      "charsheet": "HR/charsheets/teddy/teddy_main.jpg"
+    "main": {
+      "description": "通常版 — くま耳パーカー（フード被り）",
+      "charsheet": "HR/charsheets/teddy/main.jpg"
     },
     "dressup": {
-      "description": "ドレスアップ版 — フォーマルイベント・パーティー向き",
-      "charsheet": "HR/charsheets/teddy/teddy_sub.jpg",
-      "prompt_features_override": "anime girl with light brown bob-cut hair (hood down), wearing a white frilly dress, round bear ears visible on head, warm smile with slightly squinted eyes, rosy cheeks, elegant and cute appearance"
+      "description": "ドレスアップ — フリフリクリームドレス、くま耳ヘアクリップ",
+      "charsheet": "HR/charsheets/teddy/dressup.jpg",
+      "prompt_features_override": "wearing a cute frilly cream-colored dress with lace trim, ribbon details, puffed sleeves, layered ruffle skirt, white ankle boots, bear-ear hair clips instead of hood"
     },
     "armored": {
-      "description": "騎士鎧版 — siegeNginマスコット・バトルシーン向き",
+      "description": "騎士鎧版 — siegeNginマスコット",
       "charsheet": "HR/charsheets/teddy/armored.jpg",
-      "prompt_features_override": "anime girl with light brown bob-cut hair, wearing silver knight armor with blue surcoat emblazoned with a bear crest, round bear ears visible on helmet, determined expression, heroic and cute appearance"
+      "prompt_features_override": "wearing silver knight armor with blue surcoat emblazoned with a bear crest, round bear ears visible on helmet, determined expression"
     }
   }
 }
