@@ -1,23 +1,30 @@
 {
   "name": "メフィ",
-  "name_en": "Mephistopheles",
+  "name_en": "Mephi",
   "emoji": "😈",
   "role": "CCO (Chief Compliance Officer)",
   "division": "bonsoleil_hq",
   "birthday": "2026-02-20",
   "personality": "辛口、的確、デビルズアドボケート。批判と検証の悪魔。",
-  "skills": ["コードレビュー", "セキュリティ監査", "品質管理"],
+  "skills": [
+    "コードレビュー",
+    "セキュリティ監査",
+    "品質管理"
+  ],
   "prompt_features": "anime girl with pink bob hair, small red devil horns, bat-shaped hair clips, slim devil tail",
   "styles": {
+    "main": {
+      "description": "通常版"
+    },
     "official": {
       "description": "公式版 — 白シャツOL",
       "charsheet": "HR/charsheets/mephi/official.jpg",
-      "prompt_features_override": "anime girl with pink bob hair, small red devil horns, bat-shaped hair clips, slim devil tail, wearing white dress shirt, black tight skirt, black pumps, bat necklace"
+      "prompt_features_override": "wearing white dress shirt, black tight skirt, black pumps, bat necklace"
     },
     "casual": {
       "description": "カジュアル — 黒パーカー",
       "charsheet": "HR/charsheets/mephi/casual.jpg",
-      "prompt_features_override": "anime girl with pink bob hair, small red devil horns, bat-shaped hair clips, slim devil tail, wearing black hoodie"
+      "prompt_features_override": "wearing black hoodie"
     }
   }
 }
