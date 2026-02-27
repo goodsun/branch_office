@@ -57,15 +57,16 @@ Gemini はプロンプトテキストを ref 画像より強く優先する。
 ## 生成物の管理
 
 ```
-workspace/generates/    ← 生成直後はここに出力（ステージング）
+workspace/assets/tmp/      ← 生成直後はここに出力（ステージング）
 ↓ 確認・採用
 workspace/assets/images/   ← 公開用
 workspace/HR/charsheets/   ← 社員のキャラシート
 ```
 
-- **試行錯誤（v1, v2...）は generates/ に溜める**
-- 採用後に正しい場所にコピー、generates/ から削除
-- SNS 投稿成功後も generates/ から削除
+- **試行錯誤（v1, v2...）は assets/tmp/ に溜める**
+- 採用後に正しい場所にコピー
+- `assets/tmp/` は揮発データ（7日以上経過でクリーンアップ対象、.gitignore対象）
+- SNS 投稿成功後も assets/tmp/ から削除
 
 ## 生成前の確認事項
 
