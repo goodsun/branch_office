@@ -82,7 +82,6 @@ branch_office/                      # リポジトリ（種）
 │   ├── projects/           <- gitリポジトリをcloneして作業する場所
 │   ├── scripts/            <- common/ のみ sync、他はローカル固有
 │   ├── config/             <- 設定ファイル（certbot 等も含む）
-│   ├── generates/          <- 生成物ステージング（試行錯誤置き場）
 │   └── logs/               <- ログ
 └── branch_office/          <- リポジトリ（git pull で更新）
                                ※ workspace 外に置く（理由: contribution_guide.md 参照）
@@ -94,7 +93,7 @@ branch_office/                      # リポジトリ（種）
 
 ### v3.3からv3.4へのマイグレーション
 
-v3.3以前では `~/documents/`、`~/config/`、`~/generates/`、`~/logs/` がホーム直下にありました。
+v3.3以前では `~/documents/`、`~/config/`、`~/logs/` がホーム直下にありました。
 v3.4からは `~/workspace/` 配下に統合されています。
 
 ```bash
@@ -103,7 +102,6 @@ v3.4からは `~/workspace/` 配下に統合されています。
 rsync -a ~/documents/discussions/ ~/workspace/documents/discussions/
 rm -rf ~/documents/discussions
 
-mv ~/generates ~/workspace/generates
 mv ~/logs ~/workspace/logs
 mv ~/config ~/workspace/config
 
