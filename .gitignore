@@ -24,6 +24,7 @@ projects/*
 scripts/*
 !scripts/.gitkeep
 !scripts/common/
+!scripts/samples/
 documents/*
 !documents/.gitkeep
 !documents/company_rules/

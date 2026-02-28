@@ -5,6 +5,7 @@
 | 提案者 | Akiko Bizeny（Web3事業部） |
 | 日付 | 2026-02-28 |
 | ステータス | 実証済み・本番稼働中 |
+| レビュー | メフィ😈（CCO）セキュリティレビュー済み |
 
 ## 概要
 
@@ -60,6 +61,7 @@ openclaw system event --text "メール内容..." --mode now
   ↓ (最大5分)
 cron → 監視スクリプト (Python)
   ↓ IMAP polling で新着検知
+  ↓ セキュリティ検証 (SPF/DKIM/DMARC)
   ↓
 openclaw system event --mode now --text "タスク内容"
   ↓
@@ -70,9 +72,51 @@ openclaw system event --mode now --text "タスク内容"
 完了報告（Telegram等）
 ```
 
+## セキュリティ対策
+
+### 1. プロンプトインジェクション緩和
+
+メール本文がそのまま `system event --text` に渡されるため、悪意ある指示が混入するリスクがある。
+
+対策:
+- **メール本文の文字数制限** (デフォルト: 3000文字)
+- **タスク全体の文字数制限** (デフォルト: 5000文字)
+- **送信者ホワイトリスト** (`AUTO_PROCESS_SENDERS`) による制限
+
+### 2. From詐称対策 (SPF/DKIM/DMARC)
+
+メールのFromヘッダは容易に詐称できるため、`Authentication-Results` ヘッダを検証する。
+
+| 条件 | 動作 |
+|------|------|
+| DMARC fail + policy=reject/quarantine | ブロック + Telegram警告 |
+| DMARC fail + policy=none | 警告付きで通過 |
+| SPF fail + DKIM fail | ブロック + Telegram警告 |
+| SPF fail + DKIM pass | 警告付きで通過（転送メール等） |
+| Authentication-Results なし | 警告付きで通過（レンタルサーバー等） |
+
+### 3. 冪等性 (重複実行防止)
+
+cronが重複実行された場合に同じメールを2回処理しないよう、`fcntl.flock` によるロックファイルを使用。
+
+### 4. UIDVALIDITY監視
+
+IMAPサーバーがUIDを振り直した場合（メールボックス再構築等）、`UIDVALIDITY` の変化を検知して `last_seen_uid` を自動リセットし、Telegramで通知する。
+
+### 5. エラーハンドリング
+
+- IMAP接続: 3回リトライ（5秒間隔）
+- 全エラー: Telegram通知
+- 個別メール処理エラー: スキップして次のメールを処理（他メールを巻き込まない）
+
+### 6. 添付ファイルのサニタイズ
+
+- ファイル名のパストラバーサル防止 (`os.path.basename`)
+- 危険な文字の除去
+
 ## 実装のポイント
 
-### 1. cron環境でのPATH設定
+### cron環境でのPATH設定
 
 `openclaw` コマンドは Node.js で動くため、cron環境ではPATHが通らない。crontab の先頭に追加:
 
@@ -80,49 +124,13 @@ openclaw system event --mode now --text "タスク内容"
 PATH=/home/<user>/.nvm/versions/node/<version>/bin:/usr/local/bin:/usr/bin:/bin
 ```
 
-### 2. 監視スクリプトの基本構造 (Python)
-
-```python
-import subprocess
-
-OPENCLAW_BIN = "/home/<user>/.nvm/versions/node/<version>/bin/openclaw"
-
-def wake_agent(task_message):
-    """システムイベントを注入してエージェントを起こす"""
-    result = subprocess.run(
-        [OPENCLAW_BIN, "system", "event",
-         "--text", task_message,
-         "--mode", "now"],
-        capture_output=True, text=True, timeout=15
-    )
-    return result.returncode == 0
-```
-
-### 3. IMAP UID管理
-
-- `last_seen_uid` をファイルに保存して差分検知
-- 注意: IMAPサーバーがUIDをリセットすることがある。last_seen_uid が実際のUIDより大きくなると新着をスキップしてしまう
-- 対策: UIDVALIDITY の変化を監視する、または定期的にリセットする
-
-### 4. 送信者による処理分岐
-
-```python
-AUTO_PROCESS_SENDERS = {
-    "vip@example.com",      # 自動処理対象
-    "boss@example.com",
-}
-
-# AUTO_PROCESS_SENDERS → system event でエージェントが自律処理
-# その他 → Telegram通知のみ（人間が判断）
-```
-
-### 5. cron時間帯の制限
+### cron時間帯の制限
 
 深夜のメール処理を避けるため、活動時間帯のみ実行:
 
 ```crontab
 # JST 8:00〜翌1:00 = UTC 23:00〜16:00
-*/5 0-16,23 * * * /usr/bin/python3 /path/to/check_mail.py
+*/5 0-16,23 * * * /usr/bin/python3 /path/to/check_mail.py >> /path/to/check_mail.log 2>&1
 ```
 
 ## 応用
@@ -143,6 +151,10 @@ AUTO_PROCESS_SENDERS = {
 | HEARTBEAT 5分間隔 | ~$1,200 | 最大5分 | 高 |
 | HEARTBEAT 30分間隔 | ~$200 | 最大30分 | 高 |
 | system event (本方式) | イベント数 x 1ターン分 | 最大5分 (cron間隔) | 高 |
+
+## サンプルコード
+
+完全なサンプル実装は [`scripts/samples/check_mail_sample.py`](../../scripts/samples/check_mail_sample.py) を参照。
 
 ## まとめ
 
