@@ -1,24 +1,16 @@
 #!/usr/bin/env python3
-"""check_mail_sample.py — メール受信→OpenClawエージェント自律処理のサンプル実装
-
-使い方:
-  1. CONFIG セクションを自分の環境に合わせて編集
-  2. crontab に登録:
-     PATH=/home/<user>/.nvm/versions/node/<version>/bin:/usr/local/bin:/usr/bin:/bin
-     */5 0-16,23 * * * /usr/bin/python3 /path/to/check_mail_sample.py >> /path/to/check_mail.log 2>&1
-  3. メール受信設定ファイル (JSON) を用意:
-     {"imap_server": "imap.example.com", "email": "agent@example.com", "password": "..."}
+"""agent@example.com の新着メールをチェック
+- 要対応メール（VIP送信者/オーナー）→ OpenClawセッションを起動してエージェントが自律処理
+- その他 → Telegram通知のみ
 
 セキュリティ対策:
-  - ロックファイルによる重複実行防止（冪等性、ローカルFS専用）
-  - メール本文のサニタイズ（文字数制限）
-  - SPF/DKIM/DMARC検証（Authentication-Resultsヘッダ、信頼チェーン考慮）
-  - UIDVALIDITY変化の検知
-  - IMAP接続リトライ + エラー通知
-  - 添付ファイルサイズ・タイプ制限 + パストラバーサル防止
-  - 構造化監査ログ（JSON Lines）
-
-詳細: documents/proposals/email-auto-processing.md
+- ロックファイルによる重複実行防止（冪等性）
+- メール本文のサニタイズ（文字数制限）
+- SPF/DKIM/DMARC検証（Authentication-Resultsヘッダ、信頼チェーン考慮）
+- UIDVALIDITY変化の検知
+- エラーハンドリング＋Telegram通知
+- 添付ファイルサイズ・タイプ制限
+- 構造化監査ログ（JSON Lines）
 """
 
 import imaplib, email, json, os, sys, time, subprocess, re, fcntl
@@ -26,70 +18,49 @@ from email.header import decode_header
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-
-# ─────────────────────────────────────────────
-# CONFIG — 自分の環境に合わせて編集
-# ─────────────────────────────────────────────
-
-# メールアカウント設定ファイル (JSON: imap_server, email, password)
-MAIL_CONFIG = Path(os.path.expanduser("~/.config/mail/agent.json"))
-
-# 状態管理ファイル
+MAIL_CONFIG = Path(os.path.expanduser("~/.config/mail/akiko.json"))
 STATE_FILE = Path(os.path.expanduser("~/.config/mail/last_seen_uid.txt"))
 UIDVALIDITY_FILE = Path(os.path.expanduser("~/.config/mail/uidvalidity.txt"))
 LOCK_FILE = Path(os.path.expanduser("~/.config/mail/check_mail.lock"))
 AUDIT_LOG = Path(os.path.expanduser("~/logs/mail_audit.jsonl"))
-
-# OpenClaw
 OPENCLAW_BIN = os.path.expanduser("~/.nvm/versions/node/v24.14.0/bin/openclaw")
+OPENCLAW_CONFIG = Path(os.path.expanduser("~/.openclaw/openclaw.json"))
+TMP_DIR = Path(os.path.expanduser("~/workspace/assets/tmp"))
+TELEGRAM_CHAT_ID = ""
 
-# Telegram通知 (オプション — 不要なら NOTIFY_TELEGRAM = False に)
-NOTIFY_TELEGRAM = True
-TELEGRAM_BOT_TOKEN = ""  # 空なら openclaw.json から自動取得
-TELEGRAM_CHAT_ID = ""    # 通知先チャットID
-
-# 自動処理対象の送信者 (ホワイトリスト)
+# この送信者からのメールはOpenClawセッションを起動してエージェントが自律処理
 AUTO_PROCESS_SENDERS = [
     # "boss@example.com",
     # "client@example.com",
 ]
 
-# 添付ファイル保存先
-TMP_DIR = Path(os.path.expanduser("~/workspace/assets/tmp"))
+# メール本文の最大文字数（プロンプトインジェクション緩和）
+MAX_BODY_CHARS = 3000
 
-# 安全制限
-MAX_BODY_CHARS = 3000   # メール本文の最大文字数
-MAX_TASK_CHARS = 5000   # system eventに渡すタスクの最大文字数
+# system eventに渡すタスクの最大文字数
+MAX_TASK_CHARS = 5000
+
+# 添付ファイル制限
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_ATTACHMENT_TYPES = {
     ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp",  # 画像
-    ".pdf", ".txt", ".csv", ".md",                      # ドキュメント
     ".heic", ".heif",                                    # iPhone写真
 }
 
 # 受信サーバーのホスト名（Authentication-Results の信頼チェーン）
-# 自社の受信MTA/プロバイダのホスト名を設定
-# 空文字の場合はサーバーチェックをスキップ（非推奨）
 TRUSTED_AUTH_SERVER = ""  # 例: "mx.example.com"
 
-# タイムゾーン
-LOCAL_TZ = timezone(timedelta(hours=9))  # JST
+JST = timezone(timedelta(hours=9))
 
 
 # ─────────────────────────────────────────────
 # 監査ログ（JSON Lines）
 # ─────────────────────────────────────────────
 def audit_log(event, **kwargs):
-    """構造化監査ログを記録
-
-    出力例:
-    {"timestamp":"2026-02-28T23:50:04+09:00","event":"mail_received",
-     "uid":"27","sender":"boss@example.com","subject":"テスト",
-     "auto_process":true,"auth_ok":true}
-    """
+    """構造化監査ログを記録"""
     AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
     entry = {
-        "timestamp": datetime.now(LOCAL_TZ).isoformat(),
+        "timestamp": datetime.now(JST).isoformat(),
         "event": event,
         **kwargs
     }
@@ -101,11 +72,7 @@ def audit_log(event, **kwargs):
 # ロックファイル（冪等性: cron重複実行防止）
 # ─────────────────────────────────────────────
 class FileLock:
-    """fcntl.flock ベースの排他ロック
-
-    注意: NFSでは信頼できない。ローカルFS専用。
-    NFS環境では mkdir のアトミック性を利用したロック等を検討。
-    """
+    """fcntl.flock ベースの排他ロック（ローカルFS専用）"""
     def __init__(self, path):
         self.path = path
         self.fd = None
@@ -137,27 +104,16 @@ class FileLock:
 # ─────────────────────────────────────────────
 # 通知
 # ─────────────────────────────────────────────
-def _get_telegram_token():
-    if TELEGRAM_BOT_TOKEN:
-        return TELEGRAM_BOT_TOKEN
-    try:
-        config_path = Path(os.path.expanduser("~/.openclaw/openclaw.json"))
-        config = json.load(open(config_path))
-        return config["channels"]["telegram"]["botToken"]
-    except Exception:
-        return None
-
-
 def telegram_notify(text):
     """Telegram にテキスト通知を送る"""
-    if not NOTIFY_TELEGRAM or not TELEGRAM_CHAT_ID:
-        return
-    token = _get_telegram_token()
-    if not token:
-        print("Telegram token not found")
+    try:
+        config = json.load(open(OPENCLAW_CONFIG))
+        bot_token = config["channels"]["telegram"]["botToken"]
+    except Exception as e:
+        print(f"Telegram token error: {e}")
         return
     import urllib.request, urllib.parse
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     clean_text = text.replace("&", "&amp;")
     params = urllib.parse.urlencode({
         "chat_id": TELEGRAM_CHAT_ID,
@@ -172,13 +128,13 @@ def telegram_notify(text):
 
 def telegram_error(error_msg):
     """エラーをTelegramで通知"""
-    telegram_notify(f"⚠️ <b>check_mail エラー</b>\n{error_msg}")
+    telegram_notify(f"⚠️ <b>check_mail.py エラー</b>\n{error_msg}")
 
 
 # ─────────────────────────────────────────────
-# system event — エージェントを起こす
+# system event
 # ─────────────────────────────────────────────
-def wake_agent(task_message):
+def wake_akiko(task_message):
     """システムイベントを注入してエージェントのメインセッションを即座に起こす"""
     if len(task_message) > MAX_TASK_CHARS:
         task_message = task_message[:MAX_TASK_CHARS] + "\n\n[...メール本文が長いため省略されました]"
@@ -224,7 +180,7 @@ def extract_sender_email(from_header):
 
 
 def sanitize_body(body):
-    """メール本文をサニタイズ（文字数制限）"""
+    """メール本文をサニタイズ"""
     if len(body) > MAX_BODY_CHARS:
         body = body[:MAX_BODY_CHARS] + "\n\n[...本文が長いため省略]"
     return body.strip()
@@ -254,7 +210,7 @@ def extract_attachments(msg):
         if filename:
             decoded_fn = decode_header_value(filename)
             safe_name = re.sub(r'[^\w\.\-]', '_', decoded_fn)
-            safe_name = os.path.basename(safe_name)  # パストラバーサル防止
+            safe_name = os.path.basename(safe_name)
             if not safe_name:
                 safe_name = f"attachment_{int(time.time())}"
 
@@ -288,13 +244,36 @@ def extract_attachments(msg):
 # ─────────────────────────────────────────────
 # メール認証検証（SPF/DKIM/DMARC）
 # ─────────────────────────────────────────────
+def _find_trusted_auth_header(all_auth):
+    """信頼サーバーが付与した Authentication-Results ヘッダを探す
+
+    RFC 8601 Section 5: MTA は自身が付与した Authentication-Results を
+    ヘッダブロックの最上部に挿入する。複数MTAを経由する場合、
+    最上位ヘッダが最終受信MTAのもの。
+
+    ただし中間MTAが書き換える場合もあるため、TRUSTED_AUTH_SERVER に
+    一致するヘッダを上から順に探し、最初に見つかったものを採用する。
+    """
+    if not TRUSTED_AUTH_SERVER:
+        # 信頼サーバー未設定 → 最上位ヘッダをそのまま使用（非推奨）
+        return all_auth[0] if all_auth else None
+
+    for header in all_auth:
+        # Authentication-Results の最初のトークンが authserv-id（サーバー名）
+        # 例: "mx.hetemail.jp; dkim=pass; spf=pass; dmarc=pass"
+        if TRUSTED_AUTH_SERVER in header:
+            return header
+
+    return None  # 信頼サーバーのヘッダが見つからない
+
+
 def verify_email_auth(msg, sender_email):
     """Authentication-Results ヘッダでSPF/DKIM/DMARCを検証
 
-    信頼チェーン:
-    1. msg.get_all() で全ヘッダ取得（最初=最上位=最後のリレーMTAが付与）
-    2. TRUSTED_AUTH_SERVER と一致するか確認
-    3. 信頼できないサーバーのヘッダは無視
+    RFC 8601 準拠の信頼チェーン:
+    1. msg.get_all() で全ヘッダ取得
+    2. TRUSTED_AUTH_SERVER に一致するヘッダを上から探索
+    3. 信頼サーバーのヘッダのみ使用（外部注入ヘッダを排除）
 
     Returns:
         (bool, str): (検証合格, 詳細メッセージ)
@@ -302,25 +281,26 @@ def verify_email_auth(msg, sender_email):
     all_auth = msg.get_all("Authentication-Results") or []
 
     if not all_auth:
-        # ホワイトリスト送信者からヘッダなしは異常 → ブロック
         return False, "Authentication-Results ヘッダなし（認証不可: ブロック）"
 
-    # 最初のヘッダ（最上位 = 自社MTAが付与）のみ信頼
-    auth_results = all_auth[0]
+    # 信頼サーバーが付与したヘッダを探す
+    auth_results = _find_trusted_auth_header(all_auth)
 
-    # 信頼サーバーチェック
-    if TRUSTED_AUTH_SERVER and TRUSTED_AUTH_SERVER not in auth_results:
-        return False, f"信頼サーバー({TRUSTED_AUTH_SERVER})以外が付与: {auth_results[:200]}"
+    if auth_results is None:
+        return False, (
+            f"信頼サーバー({TRUSTED_AUTH_SERVER})のAuth-Resultsが見つからない "
+            f"(全{len(all_auth)}件のヘッダを検査済み)"
+        )
 
     auth_lower = auth_results.lower()
 
-    # DMARC fail
+    # DMARC fail — policy=reject/quarantine なら拒否
     if "dmarc=fail" in auth_lower:
         if "policy=reject" in auth_lower or "policy=quarantine" in auth_lower:
             return False, f"DMARC検証失敗(policy=reject/quarantine): {auth_results[:200]}"
         return True, f"DMARC fail but policy=none（警告）: {auth_results[:200]}"
 
-    # SPF + DKIM
+    # SPF fail + DKIM fail なら拒否
     spf_fail = "spf=fail" in auth_lower or "spf=softfail" in auth_lower
     dkim_fail = "dkim=fail" in auth_lower or "dkim=none" in auth_lower
 
@@ -334,55 +314,28 @@ def verify_email_auth(msg, sender_email):
 
 
 # ─────────────────────────────────────────────
-# UID管理
+# UIDVALIDITY管理
 # ─────────────────────────────────────────────
 def get_saved_uidvalidity():
     if UIDVALIDITY_FILE.exists():
         return UIDVALIDITY_FILE.read_text().strip()
     return None
 
+
 def save_uidvalidity(val):
     UIDVALIDITY_FILE.parent.mkdir(parents=True, exist_ok=True)
     UIDVALIDITY_FILE.write_text(str(val))
+
 
 def get_last_seen_uid():
     if STATE_FILE.exists():
         return STATE_FILE.read_text().strip()
     return "0"
 
+
 def save_last_seen_uid(uid):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     STATE_FILE.write_text(str(uid))
-
-
-# ─────────────────────────────────────────────
-# タスクメッセージ生成（カスタマイズ推奨）
-# ─────────────────────────────────────────────
-def build_task_message(sender_name, frm, subj, date, body, attachments):
-    """system eventに渡すタスクメッセージを生成
-
-    ここを事業部ごとにカスタマイズしてください。
-    例: 投稿依頼の対応ルール、返信ポリシーなど。
-    """
-    att_info = ""
-    if attachments:
-        att_list = "\n".join([f"  - {f}" for f in attachments])
-        att_info = f"\n\n添付ファイル（{TMP_DIR}/ に保存済み）:\n{att_list}"
-
-    return f"""📧 {sender_name}からメールが届きました。内容を読んで自律的に対応してください。
-
-From: {frm}
-Subject: {subj}
-Date: {date}
-
-【メール本文】
-{body}
-{att_info}
-
-【対応ルール】
-- 内容に応じて判断・実行
-- 対応完了後、Telegramで完了報告すること
-- メール処理後はIMAPで該当メールを削除（Expunge）すること"""
 
 
 # ─────────────────────────────────────────────
@@ -431,7 +384,7 @@ def check_mail():
         if uidvalidity:
             saved_uv = get_saved_uidvalidity()
             if saved_uv and saved_uv != uidvalidity:
-                print(f"  ⚠️ UIDVALIDITY changed: {saved_uv} → {uidvalidity}")
+                print(f"  ⚠️ UIDVALIDITY changed: {saved_uv} → {uidvalidity} — resetting last_seen_uid")
                 save_last_seen_uid("0")
                 audit_log("uidvalidity_reset", old=saved_uv, new=uidvalidity)
                 telegram_notify(
@@ -454,8 +407,8 @@ def check_mail():
             m.logout()
             return
 
-        now_local = datetime.now(LOCAL_TZ)
-        print(f"[{now_local.strftime('%Y-%m-%d %H:%M %Z')}] {len(uids)} new mail(s)")
+        now_jst = datetime.now(JST)
+        print(f"[{now_jst.strftime('%Y-%m-%d %H:%M JST')}] {len(uids)} new mail(s)")
 
         max_uid = 0
         for uid in uids:
@@ -474,13 +427,12 @@ def check_mail():
                 print(f"  UID {uid.decode()}: From={sender_email} Subject={subj} Attachments={len(attachments)}")
 
                 if sender_email in AUTO_PROCESS_SENDERS:
-                    # メール認証検証
+                    # ── メール認証検証 ──
                     auth_ok, auth_detail = verify_email_auth(msg, sender_email)
 
                     audit_log("mail_received",
                               uid=uid.decode(), sender=sender_email, subject=subj,
-                              auto_process=True, auth_ok=auth_ok,
-                              auth_detail=auth_detail[:200],
+                              auto_process=True, auth_ok=auth_ok, auth_detail=auth_detail[:200],
                               attachments=len(attachments))
 
                     if not auth_ok:
@@ -500,22 +452,43 @@ def check_mail():
                     if auth_detail != "認証OK":
                         print(f"  ℹ️ 認証警告: {auth_detail}")
 
-                    sender_name = sender_email.split("@")[0]
-                    task = build_task_message(
-                        sender_name, frm, subj, msg["Date"], body, attachments
-                    )
+                    # ── 自律処理 ──
+                    sender_name = "VIP送信者" if "kawashima" in sender_email else "オーナー"
 
-                    success = wake_agent(task)
+                    att_info = ""
+                    if attachments:
+                        att_list = "\n".join([f"  - {f}" for f in attachments])
+                        att_info = f"\n\n添付ファイル（~/workspace/assets/tmp/ に保存済み）:\n{att_list}"
+
+                    task = f"""📧 {sender_name}からメールが届きました。内容を読んで自律的に対応してください。
+
+From: {frm}
+Subject: {subj}
+Date: {msg['Date']}
+
+【メール本文】
+{body}
+{att_info}
+
+【対応ルール】
+- VIP送信者からの投稿依頼 → イラスト生成・キャプション作成・確認メール送信・OK後に投稿
+- オーナーからの指示 → 内容に応じて判断・実行
+- 対応完了後、Telegramでオーナーに完了報告すること
+- メール処理後はIMAPで該当メールを削除（Expunge）すること
+- 簡潔なメッセージは短く返答してOK"""
+
+                    success = wake_akiko(task)
                     audit_log("mail_processed", uid=uid.decode(),
                               sender=sender_email, action="system_event",
                               success=success)
                     if not success:
                         telegram_notify(
-                            f"📧 <b>メール自動処理失敗</b>\n"
+                            f"📧 <b>⚡ {sender_name}からメール（自動処理失敗）</b>\n"
                             f"Subject: {subj}\n\n{body[:300]}\n\n"
                             f"⚠️ 手動で対応してください。"
                         )
                 else:
+                    # その他 → Telegram通知のみ
                     audit_log("mail_received",
                               uid=uid.decode(), sender=sender_email, subject=subj,
                               auto_process=False)

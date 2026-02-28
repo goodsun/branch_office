@@ -93,9 +93,9 @@ openclaw system event --mode now --text "タスク内容"
 **信頼チェーン**: メールヘッダは外部から注入可能なため、以下の手順で信頼性を担保:
 
 1. `msg.get_all("Authentication-Results")` で全ヘッダを取得
-2. 最初のヘッダ（最上位 = 最後のリレーMTAが付与）のみ使用
-3. `TRUSTED_AUTH_SERVER` の文字列が含まれるか確認（自社受信サーバーが付与したヘッダのみ信頼）
-4. 信頼サーバー以外が付与したヘッダはブロック
+2. 上から順に `TRUSTED_AUTH_SERVER` に一致するヘッダを探索（RFC 8601 Section 5 準拠）
+3. 最初に見つかった信頼ヘッダのみ使用（MTA多段経由でもOK）
+4. 信頼サーバーのヘッダが見つからない場合はブロック（ヘッダ注入攻撃を排除）
 
 | 条件 | 動作 |
 |------|------|
@@ -124,7 +124,7 @@ IMAP UIDVALIDITY の変化を検知して `last_seen_uid` を自動リセット�
 
 - `os.path.basename` でパストラバーサル防止
 - ファイルサイズ制限（デフォルト: 10MB）
-- 拡張子ホワイトリスト（画像・ドキュメントのみ許可、実行ファイル拒否）
+- 拡張子ホワイトリスト（**画像のみ許可**: jpg/jpeg/png/gif/webp/bmp/heic/heif）
 - ブロック時は監査ログに記録
 
 ## 監査ログ
@@ -204,12 +204,32 @@ IMAP UIDVALIDITY の変化を検知して `last_seen_uid` を自動リセット�
 ### テスト実行
 
 ```bash
-# ユニットテスト（TODO: pytest実装予定）
-python3 -m pytest scripts/tests/test_check_mail.py -v
+# ユニットテスト（14テスト実装済み）
+python3 scripts/tests/test_check_mail.py
 
 # e2eテスト（手動）
-echo "テスト" | mail -s "e2e test" akiko@bon-soleil.com
+# Gmail/大学メールから agent@example.com にメール送信
 # → 5分以内にTelegram通知を確認
+```
+
+### テスト結果（2026-02-28）
+
+```
+✅ test_gmail_pass
+✅ test_gmail_dmarc_none_spf_softfail
+✅ test_gmail_dmarc_reject
+✅ test_toita_pass
+✅ test_toita_spf_fail_dkim_pass
+✅ test_toita_spoofed
+✅ test_no_auth_header
+✅ test_injected_header
+✅ test_no_trusted_server_header
+✅ test_attachment_image_allowed
+✅ test_attachment_exe_blocked
+✅ test_attachment_pdf_blocked
+✅ test_body_truncation
+✅ test_body_normal
+Results: 14 passed, 0 failed / 14 total
 ```
 
 ## 実装のポイント
