@@ -10,12 +10,13 @@
      {"imap_server": "imap.example.com", "email": "agent@example.com", "password": "..."}
 
 セキュリティ対策:
-  - ロックファイルによる重複実行防止（冪等性）
+  - ロックファイルによる重複実行防止（冪等性、ローカルFS専用）
   - メール本文のサニタイズ（文字数制限）
-  - SPF/DKIM/DMARC検証（Authentication-Resultsヘッダ）
+  - SPF/DKIM/DMARC検証（Authentication-Resultsヘッダ、信頼チェーン考慮）
   - UIDVALIDITY変化の検知
   - IMAP接続リトライ + エラー通知
-  - 添付ファイル名のサニタイズ（パストラバーサル防止）
+  - 添付ファイルサイズ・タイプ制限 + パストラバーサル防止
+  - 構造化監査ログ（JSON Lines）
 
 詳細: documents/proposals/email-auto-processing.md
 """
@@ -37,6 +38,7 @@ MAIL_CONFIG = Path(os.path.expanduser("~/.config/mail/agent.json"))
 STATE_FILE = Path(os.path.expanduser("~/.config/mail/last_seen_uid.txt"))
 UIDVALIDITY_FILE = Path(os.path.expanduser("~/.config/mail/uidvalidity.txt"))
 LOCK_FILE = Path(os.path.expanduser("~/.config/mail/check_mail.lock"))
+AUDIT_LOG = Path(os.path.expanduser("~/logs/mail_audit.jsonl"))
 
 # OpenClaw
 OPENCLAW_BIN = os.path.expanduser("~/.nvm/versions/node/v24.14.0/bin/openclaw")
@@ -58,16 +60,52 @@ TMP_DIR = Path(os.path.expanduser("~/workspace/assets/tmp"))
 # 安全制限
 MAX_BODY_CHARS = 3000   # メール本文の最大文字数
 MAX_TASK_CHARS = 5000   # system eventに渡すタスクの最大文字数
+MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_ATTACHMENT_TYPES = {
+    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp",  # 画像
+    ".pdf", ".txt", ".csv", ".md",                      # ドキュメント
+    ".heic", ".heif",                                    # iPhone写真
+}
+
+# 受信サーバーのホスト名（Authentication-Results の信頼チェーン）
+# 自社の受信MTA/プロバイダのホスト名を設定
+# 空文字の場合はサーバーチェックをスキップ（非推奨）
+TRUSTED_AUTH_SERVER = ""  # 例: "mx.example.com"
 
 # タイムゾーン
 LOCAL_TZ = timezone(timedelta(hours=9))  # JST
 
 
 # ─────────────────────────────────────────────
+# 監査ログ（JSON Lines）
+# ─────────────────────────────────────────────
+def audit_log(event, **kwargs):
+    """構造化監査ログを記録
+
+    出力例:
+    {"timestamp":"2026-02-28T23:50:04+09:00","event":"mail_received",
+     "uid":"27","sender":"boss@example.com","subject":"テスト",
+     "auto_process":true,"auth_ok":true}
+    """
+    AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "timestamp": datetime.now(LOCAL_TZ).isoformat(),
+        "event": event,
+        **kwargs
+    }
+    with open(AUDIT_LOG, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+# ─────────────────────────────────────────────
 # ロックファイル（冪等性: cron重複実行防止）
 # ─────────────────────────────────────────────
 class FileLock:
-    """fcntl.flock ベースの排他ロック"""
+    """fcntl.flock ベースの排他ロック
+
+    注意: NFSでは信頼できない。ローカルFS専用。
+    NFS環境では mkdir のアトミック性を利用したロック等を検討。
+    """
     def __init__(self, path):
         self.path = path
         self.fd = None
@@ -207,8 +245,9 @@ def extract_body(msg):
 
 
 def extract_attachments(msg):
-    """メールから添付ファイルを抽出してtmpに保存"""
+    """メールから添付ファイルを抽出してtmpに保存（サイズ・タイプ制限付き）"""
     files = []
+    skipped = []
     TMP_DIR.mkdir(parents=True, exist_ok=True)
     for part in msg.walk():
         filename = part.get_filename()
@@ -218,10 +257,31 @@ def extract_attachments(msg):
             safe_name = os.path.basename(safe_name)  # パストラバーサル防止
             if not safe_name:
                 safe_name = f"attachment_{int(time.time())}"
+
+            # 拡張子チェック
+            ext = os.path.splitext(safe_name)[1].lower()
+            if ext not in ALLOWED_ATTACHMENT_TYPES:
+                skipped.append(f"{decoded_fn} (type={ext}: blocked)")
+                audit_log("attachment_blocked", filename=decoded_fn,
+                          ext=ext, reason="disallowed_type")
+                continue
+
+            # サイズチェック
+            payload = part.get_payload(decode=True)
+            if payload and len(payload) > MAX_ATTACHMENT_SIZE:
+                skipped.append(f"{decoded_fn} (size={len(payload)//1024//1024}MB: too large)")
+                audit_log("attachment_blocked", filename=decoded_fn,
+                          size=len(payload), reason="too_large")
+                continue
+
             filepath = TMP_DIR / safe_name
             with open(filepath, "wb") as f:
-                f.write(part.get_payload(decode=True))
+                f.write(payload)
             files.append(str(filepath))
+
+    if skipped:
+        print(f"  ⚠️ Skipped attachments: {skipped}")
+
     return files
 
 
@@ -231,25 +291,38 @@ def extract_attachments(msg):
 def verify_email_auth(msg, sender_email):
     """Authentication-Results ヘッダでSPF/DKIM/DMARCを検証
 
+    信頼チェーン:
+    1. msg.get_all() で全ヘッダ取得（最初=最上位=最後のリレーMTAが付与）
+    2. TRUSTED_AUTH_SERVER と一致するか確認
+    3. 信頼できないサーバーのヘッダは無視
+
     Returns:
         (bool, str): (検証合格, 詳細メッセージ)
     """
-    auth_results = msg.get("Authentication-Results", "")
+    all_auth = msg.get_all("Authentication-Results") or []
 
-    if not auth_results:
-        return True, "Authentication-Results ヘッダなし（検証スキップ）"
+    if not all_auth:
+        # ホワイトリスト送信者からヘッダなしは異常 → ブロック
+        return False, "Authentication-Results ヘッダなし（認証不可: ブロック）"
+
+    # 最初のヘッダ（最上位 = 自社MTAが付与）のみ信頼
+    auth_results = all_auth[0]
+
+    # 信頼サーバーチェック
+    if TRUSTED_AUTH_SERVER and TRUSTED_AUTH_SERVER not in auth_results:
+        return False, f"信頼サーバー({TRUSTED_AUTH_SERVER})以外が付与: {auth_results[:200]}"
 
     auth_lower = auth_results.lower()
 
-    # DMARC fail — policy=reject/quarantine なら拒否
+    # DMARC fail
     if "dmarc=fail" in auth_lower:
         if "policy=reject" in auth_lower or "policy=quarantine" in auth_lower:
             return False, f"DMARC検証失敗(policy=reject/quarantine): {auth_results[:200]}"
         return True, f"DMARC fail but policy=none（警告）: {auth_results[:200]}"
 
-    # SPF fail + DKIM fail なら拒否
+    # SPF + DKIM
     spf_fail = "spf=fail" in auth_lower or "spf=softfail" in auth_lower
-    dkim_fail = "dkim=fail" in auth_lower
+    dkim_fail = "dkim=fail" in auth_lower or "dkim=none" in auth_lower
 
     if spf_fail and dkim_fail:
         return False, f"SPF+DKIM両方失敗: {auth_results[:200]}"
@@ -268,17 +341,14 @@ def get_saved_uidvalidity():
         return UIDVALIDITY_FILE.read_text().strip()
     return None
 
-
 def save_uidvalidity(val):
     UIDVALIDITY_FILE.parent.mkdir(parents=True, exist_ok=True)
     UIDVALIDITY_FILE.write_text(str(val))
-
 
 def get_last_seen_uid():
     if STATE_FILE.exists():
         return STATE_FILE.read_text().strip()
     return "0"
-
 
 def save_last_seen_uid(uid):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -332,6 +402,7 @@ def check_mail():
             if attempt == 2:
                 error_msg = f"IMAP接続失敗（3回リトライ後）: {e}"
                 print(error_msg)
+                audit_log("imap_error", error=str(e))
                 telegram_error(error_msg)
                 return
             time.sleep(5)
@@ -341,6 +412,7 @@ def check_mail():
         if status != "OK":
             error_msg = f"INBOX選択失敗: {status}"
             print(error_msg)
+            audit_log("imap_error", error=error_msg)
             telegram_error(error_msg)
             m.logout()
             return
@@ -361,6 +433,7 @@ def check_mail():
             if saved_uv and saved_uv != uidvalidity:
                 print(f"  ⚠️ UIDVALIDITY changed: {saved_uv} → {uidvalidity}")
                 save_last_seen_uid("0")
+                audit_log("uidvalidity_reset", old=saved_uv, new=uidvalidity)
                 telegram_notify(
                     "⚠️ <b>IMAP UIDVALIDITY変更検知</b>\n"
                     "UIDがリセットされました。last_seen_uidを0にリセットしました。"
@@ -403,8 +476,17 @@ def check_mail():
                 if sender_email in AUTO_PROCESS_SENDERS:
                     # メール認証検証
                     auth_ok, auth_detail = verify_email_auth(msg, sender_email)
+
+                    audit_log("mail_received",
+                              uid=uid.decode(), sender=sender_email, subject=subj,
+                              auto_process=True, auth_ok=auth_ok,
+                              auth_detail=auth_detail[:200],
+                              attachments=len(attachments))
+
                     if not auth_ok:
                         print(f"  ⚠️ 認証失敗 — スキップ: {auth_detail}")
+                        audit_log("mail_blocked", uid=uid.decode(),
+                                  sender=sender_email, reason=auth_detail[:200])
                         telegram_notify(
                             f"🚨 <b>メール認証失敗 — 自動処理をブロック</b>\n"
                             f"From: {sender_email}\nSubject: {subj}\n"
@@ -418,13 +500,15 @@ def check_mail():
                     if auth_detail != "認証OK":
                         print(f"  ℹ️ 認証警告: {auth_detail}")
 
-                    # sender_name はカスタマイズしてください
                     sender_name = sender_email.split("@")[0]
                     task = build_task_message(
                         sender_name, frm, subj, msg["Date"], body, attachments
                     )
 
                     success = wake_agent(task)
+                    audit_log("mail_processed", uid=uid.decode(),
+                              sender=sender_email, action="system_event",
+                              success=success)
                     if not success:
                         telegram_notify(
                             f"📧 <b>メール自動処理失敗</b>\n"
@@ -432,7 +516,9 @@ def check_mail():
                             f"⚠️ 手動で対応してください。"
                         )
                 else:
-                    # ホワイトリスト外 → 通知のみ
+                    audit_log("mail_received",
+                              uid=uid.decode(), sender=sender_email, subject=subj,
+                              auto_process=False)
                     preview = body[:200]
                     telegram_notify(
                         f"📧 <b>新着メール</b>\n"
@@ -441,6 +527,7 @@ def check_mail():
 
             except Exception as e:
                 print(f"  ⚠️ UID {uid.decode()} 処理エラー: {e}")
+                audit_log("mail_error", uid=uid.decode(), error=str(e))
                 telegram_error(f"UID {uid.decode()} 処理エラー: {e}")
 
             if int(uid) > max_uid:
@@ -452,6 +539,7 @@ def check_mail():
     except Exception as e:
         error_msg = f"メールチェック中にエラー: {e}"
         print(error_msg)
+        audit_log("check_mail_error", error=str(e))
         telegram_error(error_msg)
     finally:
         try:
