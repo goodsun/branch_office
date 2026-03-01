@@ -82,10 +82,14 @@ branch_office/                      # リポジトリ（種）
 │   ├── projects/           <- gitリポジトリをcloneして作業する場所
 │   ├── scripts/            <- common/ のみ sync、他はローカル固有
 │   ├── config/             <- 設定ファイル（certbot 等も含む）
+│   ├── skills/             <- カスタムスキル（clawhubインストール先）
 │   └── logs/               <- ログ
 └── branch_office/          <- リポジトリ（git pull で更新）
                                ※ workspace 外に置く（理由: contribution_guide.md 参照）
 ```
+
+> **`workspace/skills/` について**: OpenClawのカスタムスキル置き場。`clawhub install` のデフォルトインストール先。
+> `~/openclaw/skills/` はレガシーパス（後方互換で自動検出されるが、新規セットアップでは使わない）。
 
 > **`workspace/projects/` について**: gitリポジトリをcloneしてここで作業し、
 > 成果を GitHub に push するのが基本ワークフロー。

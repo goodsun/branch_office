@@ -30,7 +30,7 @@ elif [ -d "$REPO_DIR/template_workspace" ]; then
 fi
 
 # workspace内に配置するディレクトリ (エージェントがアクセスする全データ)
-WS_DIRS="HR assets"
+WS_DIRS="HR assets skills"
 for dir in $WS_DIRS; do
   if [ -d "$WORKSPACE/$dir" ]; then
     echo "  [skip] workspace/$dir (already exists)"
