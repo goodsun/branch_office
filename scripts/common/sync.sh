@@ -32,10 +32,10 @@ sync_dir() {
 }
 
 # ----- 1. 社則 (company_rules) — 強制上書き -----
-sync_dir "$REPO_DIR/documents/company_rules" "$HOME_DIR/documents/company_rules"
+sync_dir "$REPO_DIR/documents/company_rules" "$WORKSPACE/documents/company_rules"
 
 # ----- 2. 共通スクリプト (scripts/common) — 強制上書き -----
-sync_dir "$REPO_DIR/scripts/common" "$HOME_DIR/scripts/common"
+sync_dir "$REPO_DIR/scripts/common" "$WORKSPACE/scripts/common"
 
 # ----- 3. HR (profiles, charsheets) — workspace内に強制上書き -----
 sync_dir "$REPO_DIR/HR" "$WORKSPACE/HR"
