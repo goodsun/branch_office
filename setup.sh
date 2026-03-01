@@ -30,13 +30,16 @@ elif [ -d "$REPO_DIR/template_workspace" ]; then
 fi
 
 # workspace内に配置するディレクトリ (エージェントがアクセスする全データ)
-WS_DIRS="HR assets"
+WS_DIRS="HR assets skills"
 for dir in $WS_DIRS; do
   if [ -d "$WORKSPACE/$dir" ]; then
     echo "  [skip] workspace/$dir (already exists)"
   elif [ -d "$REPO_DIR/$dir" ]; then
     cp -r "$REPO_DIR/$dir" "$WORKSPACE/$dir"
     echo "  [copy] workspace/$dir"
+  else
+    mkdir -p "$WORKSPACE/$dir"
+    echo "  [mkdir] workspace/$dir"
   fi
 done
 
