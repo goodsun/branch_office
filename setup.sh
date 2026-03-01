@@ -37,6 +37,9 @@ for dir in $WS_DIRS; do
   elif [ -d "$REPO_DIR/$dir" ]; then
     cp -r "$REPO_DIR/$dir" "$WORKSPACE/$dir"
     echo "  [copy] workspace/$dir"
+  else
+    mkdir -p "$WORKSPACE/$dir"
+    echo "  [mkdir] workspace/$dir"
   fi
 done
 
