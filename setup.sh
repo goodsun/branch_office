@@ -40,23 +40,23 @@ for dir in $WS_DIRS; do
   fi
 done
 
-# ホーム直下に配置するディレクトリ (実行コード・ドキュメント)
-HOME_DIRS="documents projects scripts"
-for dir in $HOME_DIRS; do
-  if [ -d "$HOME_DIR/$dir" ]; then
-    echo "  [skip] ~/$dir (already exists)"
-  else
-    cp -r "$REPO_DIR/$dir" "$HOME_DIR/$dir"
-    echo "  [copy] ~/$dir"
+# workspace内に配置するディレクトリ (ドキュメント・プロジェクト・スクリプト)
+WS_EXTRA_DIRS="documents projects scripts"
+for dir in $WS_EXTRA_DIRS; do
+  if [ -d "$WORKSPACE/$dir" ]; then
+    echo "  [skip] workspace/$dir (already exists)"
+  elif [ -d "$REPO_DIR/$dir" ]; then
+    cp -r "$REPO_DIR/$dir" "$WORKSPACE/$dir"
+    echo "  [copy] workspace/$dir"
   fi
 done
 
-# template_config -> ~/config (初回コピーのみ)
-if [ -d "$HOME_DIR/config" ]; then
-  echo "  [skip] ~/config (already exists)"
+# template_config -> ~/workspace/config (初回コピーのみ)
+if [ -d "$WORKSPACE/config" ]; then
+  echo "  [skip] workspace/config (already exists)"
 elif [ -d "$REPO_DIR/template_config" ]; then
-  cp -r "$REPO_DIR/template_config" "$HOME_DIR/config"
-  echo "  [copy] template_config -> ~/config"
+  cp -r "$REPO_DIR/template_config" "$WORKSPACE/config"
+  echo "  [copy] template_config -> workspace/config"
 fi
 
 echo "  Done."
