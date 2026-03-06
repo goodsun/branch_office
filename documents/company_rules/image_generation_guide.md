@@ -104,3 +104,57 @@ workspace/HR/charsheets/   ← 社員のキャラシート
 ---
 
 *bon-soleil Holdings — 実践から学んだ画像生成ルール*
+
+
+---
+
+## Gemini API 直接呼び出し（Node.js）
+
+nanobanana を使わずに Node.js から直接 Gemini で画像生成する方法。
+
+### セットアップ
+
+```bash
+cd /tmp && HOME=/tmp npm install @google/genai
+```
+
+### 基本コード
+
+```javascript
+const { GoogleGenAI } = require('/tmp/node_modules/@google/genai');
+const fs = require('fs');
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+const response = await ai.models.generateContent({
+  model: 'gemini-2.0-flash-exp-image-generation',
+  contents: 'Your English prompt here',
+  config: { responseModalities: ['TEXT', 'IMAGE'] },
+});
+
+for (const part of response.candidates[0].content.parts) {
+  if (part.inlineData) {
+    const buffer = Buffer.from(part.inlineData.data, 'base64');
+    fs.writeFileSync('/tmp/output.png', buffer);
+  }
+}
+```
+
+### 利用可能モデル（2026-03-07時点）
+
+| モデル | 用途 |
+|--------|------|
+| `gemini-2.0-flash-exp-image-generation` | 高速・アイキャッチ向け |
+| `gemini-2.5-flash-image` | 高品質 |
+| `gemini-3-pro-image-preview` | 最高品質（低速） |
+| `imagen-4.0-generate-001` | Imagen系（別API） |
+
+### プロンプトのコツ
+
+- **英語で書く**（日本語より精度が高い）
+- キャラの外見はテキストで詳細に書く
+- スタイル指定を末尾に追加（例: `digital art style`, `cute chibi style`）
+
+### 生成後の管理
+
+→ [HR/manuals/image_management_guide.md](../../HR/manuals/image_management_guide.md) を参照
