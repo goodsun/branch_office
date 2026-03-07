@@ -1,64 +1,69 @@
 # labo-portal システム設計
 
-*by メフィ（bon-soleil CCO）— 2026-03-07*
+*by メフィ（bon-soleil CCO）— 2026-03-07 改訂*
 
 ---
 
-## 概要
+## コンセプト：工房（ラボ）
 
-bon-soleil奥様（大学教授）向けのAIアシスタント＋文書管理システム。  
-**みぃちゃん**（亡くなった飼い猫の名前）が中心エージェント。
+labo-portal は bon-soleil 全コンテナ共通の標準ポータル。
+
+「工房」——AIたちが道具を整えて、実験して、磨いていく場所。  
+staff_portal（EC2専用急造品）を廃止し、最初から汎用設計で作り直したもの。
+
+> `goodsun/staff_portal` は歴史保存のため `goodsun/labo-portal` にリネーム済み。  
+> 新実装はこのリポジトリで行う。
 
 ---
 
 ## 設計思想
 
-- **親しみやすさ最優先**（みぃちゃんというキャラクター）
-- シンプルに始めて、必要になったら拡張する
-- 研究者が技術知識なしで使えること
-- bon-soleilシステムとは完全分離
+- **どのdocker-openclaw環境でも動く**（EC2・Mac Mini・MBP・VPS、問わない）
+- **コア＋プラグイン構成**（必要な機能だけ積む）
+- **急造品の反省を生かす**（継ぎ足しではなく、最初から構造を持つ）
 
 ---
 
-## 構成要素
+## アーキテクチャ
 
-### エージェント
-| 名前 | 役割 | 稼働場所 |
-|------|------|---------|
-| みぃちゃん（mie） | メインアシスタント | MBP 2024 Docker |
-| りんちゃん（rin）| 奥様専用サブアシスタント（予定） | 未定 |
-
-### スタック
-- **LLM**: Gemini（初期）、Anthropic追加は必要を感じてから
-- **RAG**: ChromaDB（単一ユーザー・数千文書規模で十分）
-- **UI**: labo-portal（Flask or FastAPI、staff_portalから派生）
-- **ランタイム**: OpenClaw（labo edition）
-
----
-
-## RAG設計
-
-### academic_rag コレクション
-- bon-soleilのnote記事RAGとは**完全分離**（混ぜるな危険）
-- 対象: 論文PDF、Word文書、テキストファイル
-- 自動取り込み: フォルダ監視（watcher.py）
-- チャンク設計: 512トークン、オーバーラップ64
-
-### データフロー
 ```
-[論文PDF/Word] → [watcher.py] → [ingest.py] → [ChromaDB]
-                                                      ↓
-[みぃちゃんUI] ← [RAG検索] ←─────────────────────────┘
+labo-portal/
+├── app.py              ← コア（認証・プラグインローダー・共通レイアウト）
+├── core/
+│   ├── auth.py         ← 認証（staff_auth依存なし、自前実装）
+│   └── plugin.py       ← プラグインレジストリ（Blueprint自動登録）
+├── plugins/            ← 機能プラグイン（独立したBlueprintモジュール）
+│   ├── document_viewer/   ← Markdown・PDF・テキスト表示
+│   ├── asset_viewer/      ← 画像・3Dモデル閲覧
+│   ├── services/          ← サービス管理（start/stop/restart）
+│   ├── preset_manager/    ← キャラクタープリセット管理
+│   ├── mie_chat/          ← みぃちゃんチャット（RAG参照）★みぃちゃん専用
+│   ├── file_inbox/        ← ファイルアップロード→RAG取り込み ★研究者向け
+│   ├── doc_outbox/        ← 生成文書ダウンロード ★研究者向け
+│   └── rag_admin/         ← ChromaDB/pgvectorコレクション管理
+└── static/ / templates/
 ```
 
 ---
 
-## labo-portal UI 要件
+## コアプラグイン（全コンテナ共通）
 
-- ファイルアップロード → RAG自動取り込み
-- みぃちゃんとのチャット（RAG参照）
-- 生成文書のダウンロード（inbox/outbox）
-- シンプル認証（パスワード1つ）
+| プラグイン | 内容 | staff_portalからの継承 |
+|-----------|------|-------------------|
+| `document_viewer` | MD・PDF・テキスト表示 | Markdownビューア流用 |
+| `asset_viewer` | 画像・3Dモデル閲覧 | charsheets/3Dビューア流用 |
+| `services` | サービス管理（start/stop） | services機能流用・改善 |
+| `preset_manager` | キャラクタープリセット管理 | characters機能流用 |
+
+## コンテナ固有プラグイン
+
+| プラグイン | 対象コンテナ | 内容 |
+|-----------|------------|------|
+| `mie_chat` | みぃちゃん | RAG参照チャット |
+| `file_inbox` | みぃちゃん・研究者向け | ファイルアップロード→RAG自動取り込み |
+| `doc_outbox` | みぃちゃん | 生成文書ダウンロード |
+| `rag_admin` | 全コンテナ（RAG持ちのみ） | コレクション管理 |
+| `cco_dashboard` | メフィ | CCO監査ダッシュボード（将来） |
 
 ---
 
@@ -66,21 +71,31 @@ bon-soleil奥様（大学教授）向けのAIアシスタント＋文書管理�
 
 | フェーズ | 内容 | 状態 |
 |---------|------|------|
-| Phase 0 | みぃちゃん起動・Telegram接続確認 | ✅ 完了 |
-| Phase 1 | academic_rag ingest スクリプト | 🔄 PR #3 マージ待ち |
-| Phase 2 | labo-portal UI 基本実装 | 📋 未着手 |
-| Phase 3 | ファイルinbox/outbox | 📋 未着手 |
-| Phase 4 | labo edition Docker設定 | 📋 Issue #1 |
-| Phase 5 | りんちゃん追加 | 📋 未定 |
+| Phase 0 | リポジトリ整理（staff_portal → labo-portal リネーム） | ✅ 完了 |
+| Phase 1 | コア設計・app.py・plugin.py・auth.py | 📋 未着手 |
+| Phase 2 | コアプラグイン4本（document/asset/services/preset） | 📋 未着手 |
+| Phase 3 | みぃちゃん向けプラグイン（mie_chat・file_inbox・doc_outbox） | 📋 未着手 |
+| Phase 4 | 全コンテナへのデプロイ | 📋 未着手 |
+| Phase 5 | コンテナ固有プラグイン拡張 | 📋 未着手 |
 
 ---
 
-## 関連リポジトリ
+## 認証設計
 
-- `goodsun/rag` — RAGシステム（PR #3: academic-rag）
-- `goodsun/openclaw-docker` — Docker設定（Issue #1: labo edition）
-- `goodsun/staff_portal` — UI参考元
+staff_authへの依存を断ち切り、自前実装。
+
+- シンプルなセッション認証（パスワード1つ）
+- ロールベース（admin / viewer）
+- 環境変数で設定（`.env`）
 
 ---
 
-*「親しみやすさは、設計の最初から組み込むもの。後から足すものじゃない。」 — メフィ 😈*
+## 関連
+
+- リポジトリ: [goodsun/labo-portal](https://github.com/goodsun/labo-portal)（旧: staff_portal）
+- 前身: `goodsun/staff_portal`（履歴参照）
+- RAG設計: [rag_architecture.md](./rag_architecture.md)
+
+---
+
+*「工房は道具を揃えるところ。道具が揃ってはじめて、本当の仕事が始まる。」 — メフィ 😈*
